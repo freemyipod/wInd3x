@@ -1,4 +1,4 @@
-wind3x
+wInd3x
 ======
 
 Experimental Nano 4G (and maybe Nano 5G) bootrom/DFU exploit.
