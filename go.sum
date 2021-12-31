@@ -1,0 +1,4 @@
+github.com/google/gousb v1.1.1 h1:2sjwXlc0PIBgDnXtNxUrHcD/RRFOmAtRq4QgnFBE6xc=
+github.com/google/gousb v1.1.1/go.mod h1:b3uU8itc6dHElt063KJobuVtcKHWEfFOysOqBNzHhLY=
+github.com/keystone-engine/keystone v0.0.0-20210720183742-1475885daa7e h1:E1RxP/U/wZQxVFJUQlVjBxy/YshUlLkelzGRBEBlkok=
+github.com/keystone-engine/keystone v0.0.0-20210720183742-1475885daa7e/go.mod h1:x6RBIUBOBxJTcZKLVYb8fgJ5gvADotFWIZNeVVIpZG4=
