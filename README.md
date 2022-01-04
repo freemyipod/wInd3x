@@ -22,7 +22,7 @@ Put your iPod into DFU mode by connecting it over USB, holding down menu+select 
 Then, run wInd3x to put the iPod into 'haxed DFU' mode. This is a modified DFU mode that allows booting any DFU image, including unsigned and unencrypted ones. The mode is temporary, and will be active only until next (re)boot, the exploit does not modify the device permanently in any way.
 
     $ ./wInd3x
-    2021/12/31 00:59:13 wInd3x - nano 4g bootrom exploit
+    2021/12/31 00:59:13 wInd3x - iPod Nano 4G and Nano 5G bootrom exploit
     ...
     2021/12/31 00:59:15 Device will now accept signed and unsigned DFU images.
 
@@ -62,23 +62,20 @@ Vulnerability
 
 This exploits a vulnerability in the standard SETUP packet parsing code of the bootrom, in which the wIndex parameter is not checked for bmRequest == {0x20, 0x40}, but is still used to index an array of interface/class handlers (that in the Bootrom has a length of 1).
 
-Nano4G Exploit Chain
+Nano 4G and 5G Exploit Chain
 --------------------
 
-We abuse the fact that wIndex == 3 for bmRequest 0x40 treats a 'bytes left to sent over USB' counter as a function pointer and calls it with r0 == address of SETUP. We massage the DFU mode into attempting to send us 0x3b0+0x40 bytes, and failing after 0x40 bytes, thereby leaving the counter at 0x3b0 bytes and executing code at address 0x3b0.
+The first requirement is to find a suitable (blx r0) instruction in the bootrom code of the device. For Nano 4G the only one such instruction is at offset 0x3b0, and for Nano 5G there is such instruction at 0x37c. We'll refer to it as X below.
 
-Since the bootrom is mapped at offset 0x0 as well as 0x20000000 at boot, this means we execute bootrom code, and 0x3b0 happens to point to a 'blx r0' instruction. This in turn causes the CPU to interpret the SETUP packet received as ARM code.
+We abuse the fact that wIndex == 3 for bmRequest 0x40 treats a 'bytes left to sent over USB' counter as a function pointer and calls it with r0 == address of SETUP. We massage the DFU mode into attempting to send us X+0x40 bytes, and failing after 0x40 bytes, thereby leaving the counter at X bytes and executing code at address X.
 
-We specially craft the SETUP packet to be a valid ARM branch instruction, pointing somewhere into a temporary DFU image buffer. By first sending a payload as a partial DFU image (aborting before causing a MANIFEST), we finally get up to be able to execute 0x800 bytes of fully user controlled code.
+Since the bootrom is mapped at offset 0x0 as well as 0x20000000 at boot, this means we execute bootrom code, and X happens to point to a 'blx r0' instruction. This in turn causes the CPU to interpret the SETUP packet received as ARM code, because the SETUP handler is called with the SETUP packet as its argument, i.e. r0.
+
+We specially craft the SETUP packet to be a valid ARM branch instruction, pointing somewhere into a temporary DFU image buffer. By first sending a payload as a partial DFU image (aborting before causing a MANIFEST), we finally get up to be able to execute either 0x800 on Nano 4G or 0x400 on Nano 5G bytes of fully user controlled code.
 
 In that payload, we send a stub which performs some runtime changes to the DFU's data structures to a) return a different product string b) overwrite an image verification vtable entry with a function that allows unsigned images. Some SRAM is carved out by this payload to store the modified vtable and custom verification function.
 
-Nano5G Exploit Chain
---------------------
-
-Not yet exploited, but the bootrom seems vulnerable to this bug: `control_msg(0x20, 0, 0, 255, 0)` hangs the device. Some fuzzing/bruteforcing needs to be performed to get actual code execution, though.
-
-Nano6G, 7G Exploit Chain
+Nano 6G and 7G Exploit Chain
 ------------------------
 
 The vulnerability does not appear to exist on these devices. Either it was fixed or the USB stack has replaced with a different codebase.
