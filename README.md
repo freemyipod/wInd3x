@@ -19,14 +19,14 @@ Running
 
 Put your iPod into DFU mode by connecting it over USB, holding down menu+select until it reboots, blanks the screen, then shows the Apple logo, then blanks the screen again. The iPod should enumerate as 'USB DFU Device'.
 
-Then, run wind3x to put the iPod into 'haxed DFU' mode. This is a modified DFU mode that allows booting any DFU image, including unsigned and unencrypted ones. The mode is temporary, and will be active only until next (re)boot, the exploit does not modify the device permanently in any way.
+Then, run wInd3x to put the iPod into 'haxed DFU' mode. This is a modified DFU mode that allows booting any DFU image, including unsigned and unencrypted ones. The mode is temporary, and will be active only until next (re)boot, the exploit does not modify the device permanently in any way.
 
-    $ ./wind3x
-    2021/12/31 00:59:13 wind3x - nano 4g bootrom exploit
+    $ ./wInd3x
+    2021/12/31 00:59:13 wInd3x - nano 4g bootrom exploit
     ...
     2021/12/31 00:59:15 Device will now accept signed and unsigned DFU images.
 
-You can then use any DFU tool to upload any DFU image and the device should boot it. You can also pass the -image argument to wind3x to make it immediately send a file as a DFU image after running haxed DFU mode.
+You can then use any DFU tool to upload any DFU image and the device should boot it. You can also pass the -image argument to wInd3x to make it immediately send a file as a DFU image after running haxed DFU mode.
 
 Haxed DFU Mode
 --------------

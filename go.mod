@@ -1,4 +1,4 @@
-module github.com/q3k/wind3x
+module github.com/freemyipod/wInd3x
 
 go 1.16
 

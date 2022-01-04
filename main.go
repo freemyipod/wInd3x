@@ -18,7 +18,7 @@ func main() {
 	flag.StringVar(&flagImage, "image", "", "Path to DFU image to run.")
 	flag.Parse()
 
-	log.Printf("        wind3x - nano 4g bootrom exploit")
+	log.Printf("        wInd3x - nano 4g bootrom exploit")
 	log.Printf("  by q3k, with help from user890104, zizzy, d42")
 
 	ctx, err := newContext()
@@ -38,7 +38,7 @@ func main() {
 	}
 
 	if err := dev.haxDFU(); err != nil {
-		log.Fatalf("Failed to run wind3x exploit: %v", err)
+		log.Fatalf("Failed to run wInd3x exploit: %v", err)
 	}
 
 	if flagImage != "" {

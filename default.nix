@@ -1,7 +1,7 @@
 with import <nixpkgs> {};
 
 buildGoModule {
-  name = "wind3x";
+  name = "wInd3x";
   src = ./.;
 
   buildInputs = [ libusb keystone ];
