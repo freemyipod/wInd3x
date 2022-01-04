@@ -43,7 +43,7 @@ var deviceDescriptions = []deviceDescription{
 		exploitParams: &exploitParameters{
 			dfuBufAddr:     0x2202db00,
 			execAddr:       0x2202dc08,
-			usbBufAddr:     0x2202e300,
+			usbBufAddr:     0x2202e300, // TODO(q3k): verify this
 			returnAddr:     0x20004d70,
 			trampolineAddr: 0x37c,
 			// b 0x2202dc08

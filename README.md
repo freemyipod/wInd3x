@@ -69,7 +69,7 @@ The first requirement is to find a suitable (blx r0) instruction in the bootrom 
 
 We abuse the fact that wIndex == 3 for bmRequest 0x40 treats a 'bytes left to sent over USB' counter as a function pointer and calls it with r0 == address of SETUP. We massage the DFU mode into attempting to send us X+0x40 bytes, and failing after 0x40 bytes, thereby leaving the counter at X bytes and executing code at address X.
 
-Since the bootrom is mapped at offset 0x0 as well as 0x20000000 at boot, this means we execute bootrom code, and X happens to point to a 'blx r0' instruction. This in turn causes the CPU to interpret the SETUP packet received as ARM code.
+Since the bootrom is mapped at offset 0x0 as well as 0x20000000 at boot, this means we execute bootrom code, and X happens to point to a 'blx r0' instruction. This in turn causes the CPU to interpret the SETUP packet received as ARM code, because the SETUP handler is called with the SETUP packet as its argument, i.e. r0.
 
 We specially craft the SETUP packet to be a valid ARM branch instruction, pointing somewhere into a temporary DFU image buffer. By first sending a payload as a partial DFU image (aborting before causing a MANIFEST), we finally get up to be able to execute either 0x800 on Nano 4G or 0x400 on Nano 5G bytes of fully user controlled code.
 
