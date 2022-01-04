@@ -32,6 +32,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Device unavailable: %v", err)
 	}
+	if dev == nil {
+		log.Fatalf("Device not found. Make sure it's in DFU mode.")
+	}
 
 	log.Printf("Found %s in DFU mode", dev.kind)
 	if err := dev.clean(); err != nil {
