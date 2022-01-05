@@ -6,12 +6,17 @@ import (
 	"log"
 	"os"
 
+	"github.com/freemyipod/wInd3x/pkg/devices"
+	"github.com/freemyipod/wInd3x/pkg/dfu"
+	"github.com/freemyipod/wInd3x/pkg/exploit"
+	"github.com/freemyipod/wInd3x/pkg/haxeddfu"
 	"github.com/google/gousb"
 	"github.com/hashicorp/go-multierror"
 )
 
 var (
-	flagImage string
+	flagImage        string
+	flagForceExploit bool
 )
 
 func main() {
@@ -28,20 +33,22 @@ func main() {
 	}
 	defer ctx.Close()
 
-	dev, err := findDevice(ctx)
+	usb, desc, err := findDevice(ctx)
 	if err != nil {
 		log.Fatalf("Device unavailable: %v", err)
 	}
-	if dev == nil {
+	if usb == nil {
 		log.Fatalf("Device not found. Make sure it's in DFU mode.")
 	}
 
-	log.Printf("Found %s in DFU mode", dev.kind)
-	if err := dev.clean(); err != nil {
+	log.Printf("Found %s in DFU mode", desc.Kind)
+	ep := exploit.ParametersForKind[desc.Kind]
+
+	if err := dfu.Clean(usb); err != nil {
 		log.Fatalf("Could not get device into clean state: %v", err)
 	}
 
-	if err := dev.haxDFU(); err != nil {
+	if err := haxeddfu.Trigger(usb, ep, flagForceExploit); err != nil {
 		log.Fatalf("Failed to run wInd3x exploit: %v", err)
 	}
 
@@ -51,7 +58,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to read image: %v", err)
 		}
-		if err := dev.sendImage(data); err != nil {
+		if err := dfu.SendImage(usb, data); err != nil {
 			log.Fatalf("Failed to send image: %v", err)
 		}
 		log.Printf("Image sent.")
@@ -83,37 +90,19 @@ func newContext() (*gousb.Context, error) {
 	}
 }
 
-func findDevice(ctx *gousb.Context) (*device, error) {
+func findDevice(ctx *gousb.Context) (*gousb.Device, *devices.Description, error) {
 	var errs error
-	for _, deviceDesc := range deviceDescriptions {
-		usbDevice, err := ctx.OpenDeviceWithVIDPID(deviceDesc.vid, deviceDesc.pid)
+	for _, deviceDesc := range devices.Descriptions {
+		usb, err := ctx.OpenDeviceWithVIDPID(deviceDesc.DFUVID, deviceDesc.DFUPID)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
 
-		if usbDevice == nil {
+		if usb == nil {
 			continue
 		}
 
-		return &device{
-			kind:          deviceDesc.kind,
-			exploitParams: deviceDesc.exploitParams,
-			usb:           usbDevice,
-		}, nil
+		return usb, &deviceDesc, nil
 	}
-	return nil, errs
-}
-
-func (d *device) clean() error {
-	if err := d.clearStatus(); err != nil {
-		return fmt.Errorf("ClrStatus: %w", err)
-	}
-	state, err := d.getState()
-	if err != nil {
-		return fmt.Errorf("GetState: %w", err)
-	}
-	if state != dfuIdle {
-		return fmt.Errorf("unexpected DFU state %s", state)
-	}
-	return nil
+	return nil, nil, errs
 }
