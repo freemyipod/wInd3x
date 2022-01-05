@@ -34,6 +34,7 @@ var deviceDescriptions = []deviceDescription{
 			trampolineAddr: 0x3b0,
 			// b 0x2202dc08
 			setupPacket: []byte{0x40, 0xfe, 0xff, 0xea, 0x03, 0x00, 0x00, 0x00},
+			ret1Addr:    0x20000d10,
 		},
 	},
 	{
@@ -48,6 +49,7 @@ var deviceDescriptions = []deviceDescription{
 			trampolineAddr: 0x37c,
 			// b 0x2202dc08
 			setupPacket: []byte{0x40, 0xfe, 0xff, 0xea, 0x03, 0x00, 0x00, 0x00},
+			ret1Addr:    0x20000cbc,
 		},
 	},
 }

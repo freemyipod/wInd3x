@@ -1,7 +1,7 @@
 wInd3x
 ======
 
-Experimental Nano 4G (and maybe Nano 5G) bootrom/DFU exploit.
+Nano 4G and Nano 5G bootrom/DFU exploit.
 
 Building
 --------
@@ -31,26 +31,16 @@ You can then use any DFU tool to upload any DFU image and the device should boot
 Haxed DFU Mode
 --------------
 
-Once in haxed DFU mode, the DFU will continue as previously, and you will still be able to send properly signed images (like WTF), or images which exploit Pwnage 2.0. In addition, you can now send over images with type sent to '0' instead of '3'/'4', which bypass all decryption and signature checks (header and footer), and which will be loaded and executed as is.
+Once in haxed DFU mode, the DFU will continue as previously, and you will still be able to send properly signed and encrypted images (like WTF). However, signature checking (in header and footer) is disabled. What this means:
 
-As an example, the following image will hang the iPod in a spinloop:
+ - Images with format '3' (like WTF) will not be sigchecked, but will be decrypted.
+ - Images with format '4' will not be sigchecked and will not be decrypted.
+ - Pwnage 2.0 images *might* work if they are built to be able to run without having to exploit footer signature checking.
 
-    # header declaring a 0x100 byte body and no footer
-    payload = b'87202.0\x00\x00\x00\x00\x00\x00\x01\x00\x00'
-    payload += b'\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-    # 'salt'
-    payload += b'Z' * 32
-    # unused security epoch
-    payload += b'\x00\x00\x00\x00'
-    # unchecked signature
-    payload += b'Z' * 16
-    # pad header to 0x600 bytes
-    payload += b'\x00' * (0x600 - len(payload))
-    # code goes here
-    payload += b'\xfe\xff\xff\xea'
-    # pad entire thing to 0x600 + 0x100 bytes
-    payload += b'\x00' * (0x700 - len(payload))
 
+To make your own DFU images, you should thus make format '4' images, not encrypt them and not sign them.
+
+TODO: provide tool to generate images
 
 Running EmCORE
 --------------

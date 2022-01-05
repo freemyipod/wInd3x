@@ -41,11 +41,6 @@ func main() {
 		log.Fatalf("Could not get device into clean state: %v", err)
 	}
 
-	if dev.kind == deviceNano5 {
-		log.Printf("Haxed DFU not yet implemented for Nano 5G, returning")
-		return
-	}
-
 	if err := dev.haxDFU(); err != nil {
 		log.Fatalf("Failed to run wInd3x exploit: %v", err)
 	}
