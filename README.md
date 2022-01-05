@@ -19,19 +19,23 @@ Running
 
 Put your iPod into DFU mode by connecting it over USB, holding down menu+select until it reboots, blanks the screen, then shows the Apple logo, then blanks the screen again. The iPod should enumerate as 'USB DFU Device'.
 
-Then, run wInd3x to put the iPod into 'haxed DFU' mode. This is a modified DFU mode that allows booting any DFU image, including unsigned and unencrypted ones. The mode is temporary, and will be active only until next (re)boot, the exploit does not modify the device permanently in any way.
+Then, run `wInd3x haxdfu` to put the iPod into 'haxed DFU' mode. This is a modified DFU mode that allows booting any DFU image, including unsigned and unencrypted ones. The mode is temporary, and will be active only until next (re)boot, the exploit does not modify the device permanently in any way.
 
-    $ ./wInd3x
-    2021/12/31 00:59:13 wInd3x - iPod Nano 4G and Nano 5G bootrom exploit
-    ...
-    2021/12/31 00:59:15 Device will now accept signed and unsigned DFU images.
+    $ ./wInd3x haxdfu
+    [...]
+    2021/12/31 00:59:15 Haxed DFU running!
 
-You can then use any DFU tool to upload any DFU image and the device should boot it. You can also pass the -image argument to wInd3x to make it immediately send a file as a DFU image after running haxed DFU mode.
+You can then use any DFU tool to upload any DFU image and the device should boot it. You can also use the `run` subcommand to wInd3x to make it immediately send a file as a DFU image after starting haxed DFU mode (if needed):
+
+    $ ./wInd3x run wtf-test.dfu
+    [...]
+    2022/01/06 00:06:56 Uploading wtf-test.dfu...
+    2022/01/06 00:06:56 Image sent.
 
 Haxed DFU Mode
 --------------
 
-Once in haxed DFU mode, the DFU will continue as previously, and you will still be able to send properly signed and encrypted images (like WTF). However, signature checking (in header and footer) is disabled. What this means:
+When in haxed DFU mode, the DFU will continue as previously, and you will still be able to send properly signed and encrypted images (like WTF). However, signature checking (in header and footer) is disabled. What this means:
 
  - Images with format '3' (like WTF) will not be sigchecked, but will be decrypted.
  - Images with format '4' will not be sigchecked and will not be decrypted.

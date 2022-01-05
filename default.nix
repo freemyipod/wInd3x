@@ -7,5 +7,5 @@ buildGoModule {
   buildInputs = [ libusb keystone ];
   nativeBuildInputs = [ pkg-config ];
 
-  vendorSha256 = "sha256-M+hmCwQXr8KVyJH9CPNLkiOvkAPSWt8jTeRJaWKruIs=";
+  vendorSha256 = "sha256-iJmyb2HDJbdbu/Gd6yA5jecJSUSvjQVnfvw5m//306A=";
 }
