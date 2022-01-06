@@ -12,7 +12,7 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
-	"github.com/freemyipod/wInd3x/pkg/haxeddfu"
+	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
 )
 
 var rootCmd = &cobra.Command{
