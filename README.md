@@ -1,3 +1,5 @@
+<img src="logotype.png">
+
 wInd3x
 ======
 
