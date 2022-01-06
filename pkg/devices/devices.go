@@ -21,6 +21,16 @@ func (k Kind) String() string {
 	return "UNKNOWN"
 }
 
+func (k Kind) SoCCode() string {
+	switch k {
+	case Nano4:
+		return "8720"
+	case Nano5:
+		return "8730"
+	}
+	return "INVL"
+}
+
 type Description struct {
 	DFUVID, DFUPID gousb.ID
 	Kind           Kind

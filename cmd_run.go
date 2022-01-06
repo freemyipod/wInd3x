@@ -24,7 +24,7 @@ var runCmd = &cobra.Command{
 		defer app.close()
 
 		if err := haxeddfu.Trigger(app.usb, app.ep, false); err != nil {
-			log.Fatalf("Failed to run wInd3x exploit: %w", err)
+			return fmt.Errorf("Failed to run wInd3x exploit: %w", err)
 		}
 
 		path := args[0]

@@ -75,6 +75,31 @@ wInd3x also supports memory reads from a running bootrom. For example, to dump t
 
 This will take a few minutes. Ignore any 'libusb: interrupted' errors, these are just spurous debug logs from gousb.
 
+Decrypting Images
+-----------------
+
+wInd3x can decrypt IMG1 files (eg. a WTF) using a locally-connected device. These decrypted and unsigned images can then be loaded  via Haxed DFU.
+
+    $ ./wInd3x decrypt WTF.x1225.release.dfu wtf-dec.dfu
+    2022/01/06 04:20:08 Parsed Nano 4G image.
+    2022/01/06 04:20:08 Decrypting 1e800 bytes...
+    2022/01/06 04:20:08 Decrypting first block...
+    2022/01/06 04:20:08 Decrypting 0x40...
+    [...]
+
+
+This will take a few minutes. Ignore any 'libusb: interrupted' errors, these are just spurous debug logs from gousb.
+
+If you decrypted a valid WTF image, you should be able to then run it:
+
+    $ ./wInd3x run wtf-dec.dfu
+
+Known issues
+============
+
+1. Decryption/dumping is slow, as every 0x30/0x40 we run the exploit again. We should find a better way to get code execution for this kind of tasks.
+2. Things are sometimes unstable, especially when changing modes/payloads. We should probably flush icaches more aggressively.
+
 Vulnerability
 =============
 

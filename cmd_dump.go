@@ -48,6 +48,7 @@ var dumpCmd = &cobra.Command{
 				return fmt.Errorf("failed to write: %w", err)
 			}
 		}
+		log.Printf("Done!")
 
 		return nil
 	},

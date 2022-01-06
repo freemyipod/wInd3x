@@ -35,6 +35,7 @@ func main() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(makeDFUCmd)
 	rootCmd.AddCommand(dumpCmd)
+	rootCmd.AddCommand(decryptCmd)
 	rootCmd.Execute()
 }
 
