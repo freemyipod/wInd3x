@@ -8,13 +8,15 @@ Nano 4G and Nano 5G bootrom/DFU exploit.
 Building
 --------
 
-You'll need go, libusb, and keystone. Then:
+You'll need go, libusb, and [keystone](https://github.com/keystone-engine/keystone) (not the OpenStack keystone). Then:
 
     $ go build
 
 Or, if you have Nix(OS), just do:
 
     $ nix-build
+
+We're working on making this easier to build and providing pre-built binaries.
 
 Running
 -------
@@ -122,6 +124,11 @@ Nano 6G and 7G Exploit Chain
 ------------------------
 
 The vulnerability does not appear to exist on these devices. Either it was fixed or the USB stack has replaced with a different codebase.
+
+Support
+=======
+
+IRC: #freemyipod on libera.chat
 
 License
 =======
