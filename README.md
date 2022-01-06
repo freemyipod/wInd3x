@@ -60,6 +60,19 @@ Running EmCORE
 
 To be documented.
 
+Dumping Memory
+--------------
+
+wInd3x also supports memory reads from a running bootrom. For example, to dump the bootrom's code to a file:
+
+    $ ./wInd3x dump 0x20000000 0x10000 /tmp/bootrom.bin
+    [...]
+    2022/01/06 03:10:08 Dumping 20000000...
+    2022/01/06 03:12:41 Dumping 2000ffc0...
+    2022/01/06 03:12:41 Done!
+
+This will take a few minutes. Ignore any 'libusb: interrupted' errors, these are just spurous debug logs from gousb.
+
 Vulnerability
 =============
 

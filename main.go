@@ -15,6 +15,7 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/dfu/image"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
+	"github.com/freemyipod/wInd3x/pkg/exploit/dumpmem"
 	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
 )
 
@@ -44,7 +45,7 @@ var haxDFUCmd = &cobra.Command{
 		defer app.close()
 
 		if err := haxeddfu.Trigger(app.usb, app.ep, false); err != nil {
-			return fmt.Errorf("Failed to run wInd3x exploit: %w", err)
+			return fmt.Errorf("failed to run wInd3x exploit: %w", err)
 		}
 
 		return nil
@@ -78,29 +79,60 @@ var makeDFUCmd = &cobra.Command{
 			return fmt.Errorf("--kind must be one of: n4g, n5g")
 		}
 
-		var entrypoint uint64
-		if strings.HasPrefix(strings.ToLower(makeDFUEntrypoint), "0x") {
-			entrypoint, err = strconv.ParseUint(makeDFUEntrypoint[2:], 16, 32)
-			if err != nil {
-				return fmt.Errorf("invalid entrypoint")
-			}
-		} else {
-			entrypoint, err = strconv.ParseUint(makeDFUEntrypoint[2:], 10, 32)
-			if err != nil {
-				entrypoint, err = strconv.ParseUint(makeDFUEntrypoint[2:], 16, 32)
-				if err != nil {
-					return fmt.Errorf("invalid entrypoint")
-				}
-			}
+		entrypoint, err := parseNumber(makeDFUEntrypoint)
+		if err != nil {
+			return fmt.Errorf("invalid entrypoint")
 		}
-
-		wrapped, err := image.MakeUnsigned(kind, uint32(entrypoint), data)
+		wrapped, err := image.MakeUnsigned(kind, entrypoint, data)
 		if err != nil {
 			return fmt.Errorf("could not make image: %w", err)
 		}
 
 		if err := os.WriteFile(args[1], wrapped, 0600); err != nil {
 			return fmt.Errorf("could not write image: %w", err)
+		}
+
+		return nil
+	},
+}
+
+var dumpCmd = &cobra.Command{
+	Use:   "dump [offset] [size] [file]",
+	Short: "Dump memory to file",
+	Long:  "Read memory from a connected device and write results to a file. Not very fast.",
+	Args:  cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		app, err := newApp()
+		if err != nil {
+			return err
+		}
+		defer app.close()
+
+		offset, err := parseNumber(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid offset")
+		}
+		size, err := parseNumber(args[1])
+		if err != nil {
+			return fmt.Errorf("invalid size")
+		}
+
+		f, err := os.Create(args[2])
+		if err != nil {
+			return fmt.Errorf("could not open file for writing: %w", err)
+		}
+		defer f.Close()
+
+		for i := uint32(0); i < size; i += 0x40 {
+			o := offset + i
+			log.Printf("Dumping %x...", o)
+			data, err := dumpmem.Trigger(app.usb, app.ep, o)
+			if err != nil {
+				return fmt.Errorf("failed to run wInd3x exploit: %w", err)
+			}
+			if _, err := f.Write(data); err != nil {
+				return fmt.Errorf("failed to write: %w", err)
+			}
 		}
 
 		return nil
@@ -145,6 +177,7 @@ func main() {
 	rootCmd.AddCommand(haxDFUCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(makeDFUCmd)
+	rootCmd.AddCommand(dumpCmd)
 	rootCmd.Execute()
 }
 
@@ -209,4 +242,24 @@ func newApp() (*app, error) {
 		return nil, fmt.Errorf("no device found")
 	}
 	return nil, errs
+}
+
+func parseNumber(s string) (uint32, error) {
+	var err error
+	var res uint64
+	if strings.HasPrefix(strings.ToLower(s), "0x") {
+		res, err = strconv.ParseUint(s[2:], 16, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid number")
+		}
+	} else {
+		res, err = strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			res, err = strconv.ParseUint(s, 16, 32)
+			if err != nil {
+				return 0, fmt.Errorf("invalid number")
+			}
+		}
+	}
+	return uint32(res), nil
 }
