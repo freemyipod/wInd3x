@@ -120,10 +120,15 @@ We specially craft the SETUP packet to be a valid ARM branch instruction, pointi
 
 In that payload, we send a stub which performs some runtime changes to the DFU's data structures to a) return a different product string b) overwrite an image verification vtable entry with a function that allows unsigned images. Some SRAM is carved out by this payload to store the modified vtable and custom verification function.
 
-Nano 6G and 7G Exploit Chain
-------------------------
+Nano 6G and 7G
+--------------
 
 The vulnerability does not appear to exist on these devices. Either it was fixed or the USB stack has replaced with a different codebase.
+
+iPhone, iPod Touch
+------------------
+
+This vulnerability does not exist on non-clickwheel-iPods, as those use a different bootrom (SecureROM/iBoot) that has a different USB stack.
 
 Support
 =======
