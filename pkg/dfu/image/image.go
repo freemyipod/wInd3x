@@ -86,7 +86,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 	var kind devices.Kind
-	for _, k := range []devices.Kind{devices.Nano4, devices.Nano5} {
+	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5} {
 		if bytes.Equal(hdr.Magic[:], []byte(k.SoCCode())) {
 			kind = k
 			break
