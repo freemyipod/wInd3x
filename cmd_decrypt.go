@@ -37,7 +37,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("image is for %s, but %s is connected", img.DeviceKind, app.desc.Kind)
 		}
 
-		log.Printf("Decrypting %x bytes...", len(img.Body))
+		log.Printf("Decrypting 0x%x bytes...", len(img.Body))
 
 		w := bytes.NewBuffer(nil)
 
