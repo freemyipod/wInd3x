@@ -34,6 +34,13 @@ You can then use any DFU tool to upload any DFU image and the device should boot
     2022/01/06 00:06:56 Uploading wtf-test.dfu...
     2022/01/06 00:06:56 Image sent.
 
+Running EmCORE
+--------------
+
+Or, “what can I do with this”?
+
+To be documented :)
+
 Haxed DFU Mode
 --------------
 
@@ -54,11 +61,6 @@ If you have a flat binary file which expects to run from DFU mode and be loaded 
     $ ./wInd3x makedfu flat.bin image.dfu -k n5g
 
 If the entrypoint is not at the beginning of the file, an offset can be provided with `-e 0xf00`.
-
-Running EmCORE
---------------
-
-To be documented.
 
 Dumping Memory
 --------------
