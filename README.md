@@ -46,7 +46,14 @@ When in haxed DFU mode, the DFU will continue as previously, and you will still 
 
 To make your own DFU images, you should thus make format '4' images, not encrypt them and not sign them.
 
-TODO: provide tool to generate images
+Building DFU Images
+-------------------
+
+If you have a flat binary file which expects to run from DFU mode and be loaded at address 0x22000000, you can use the `makedfu` command to wrap it in a Haxed DFU compatible DFU image.
+
+    $ ./wInd3x makedfu flat.bin image.dfu -k n5g
+
+If the entrypoint is not at the beginning of the file, an offset can be provided with `-e 0xf00`.
 
 Running EmCORE
 --------------
