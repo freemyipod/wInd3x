@@ -3,7 +3,17 @@
 wInd3x
 ======
 
-Nano 4G and Nano 5G bootrom/DFU exploit.
+Clickwheel iPod bootrom/DFU exploit.
+
+| Device       | Haxed DFU     | Decrypt/Dump | Notes                             |
+|--------------|---------------|--------------|-----------------------------------|
+| Nano 3G      | *not yet*     | **YES**      |                                   |
+| Nano 4G      | **YES**       | **YES**      |                                   |
+| Nano 5G      | **YES**       | **YES**      |                                   |
+| Nano 6G      | never         | never        |                                   |
+| Nano 7G      | never         | never        |                                   |
+| Classic “6G” | *not yet*     | **YES**      | Experimental, same ROM as Nano 3G |
+| iPod Touch   | never         | never        |                                   |
 
 Building
 --------
@@ -119,6 +129,13 @@ Since the bootrom is mapped at offset 0x0 as well as 0x20000000 at boot, this me
 We specially craft the SETUP packet to be a valid ARM branch instruction, pointing somewhere into a temporary DFU image buffer. By first sending a payload as a partial DFU image (aborting before causing a MANIFEST), we finally get up to be able to execute either 0x800 on Nano 4G or 0x400 on Nano 5G bytes of fully user controlled code.
 
 In that payload, we send a stub which performs some runtime changes to the DFU's data structures to a) return a different product string b) overwrite an image verification vtable entry with a function that allows unsigned images. Some SRAM is carved out by this payload to store the modified vtable and custom verification function.
+
+Nano 3G and Classic (”6G”)
+--------------------------
+
+With bRequestType == 0x20 and wIndex == 6 we directly jump to code execution at the SETUP packet.
+
+This Bootroom does not have a VTable which can be easily hooked to override functions to provide Haxed DFU functionality. Another way needs to be found.
 
 Nano 6G and 7G
 --------------
