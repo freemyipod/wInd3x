@@ -34,8 +34,8 @@ You can then use any DFU tool to upload any DFU image and the device should boot
     2022/01/06 00:06:56 Uploading wtf-test.dfu...
     2022/01/06 00:06:56 Image sent.
 
-Running EmCORE
---------------
+Running iBugger / EmCORE / Rockbox
+----------------------------------
 
 Or, “what can I do with this”?
 
