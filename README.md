@@ -18,7 +18,7 @@ Clickwheel iPod bootrom/DFU exploit.
 Building
 --------
 
-You'll need go, libusb, and [keystone](https://github.com/keystone-engine/keystone) (not the OpenStack keystone). Then:
+You'll need go and libusb. Then:
 
     $ go build
 

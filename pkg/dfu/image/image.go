@@ -44,10 +44,17 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 		body = append(body, pad...)
 	}
 
+	var version [3]byte
+	if dk == devices.Nano3 {
+		copy(version[:], []byte("1.0"))
+	} else {
+		copy(version[:], []byte("2.0"))
+	}
+
 	// Start off with the header.
 	hdr := &IMG1Header{
 		Magic:            magic,
-		Version:          [3]byte{'2', '.', '0'},
+		Version:          version,
 		Format:           FormatSigned,
 		Entrypoint:       entrypoint,
 		BodyLength:       uint32(len(body)),
@@ -59,8 +66,12 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 		return nil, fmt.Errorf("could not serialize header: %w", err)
 	}
 
-	// Pad to 0x600.
-	buf.Write(bytes.Repeat([]byte{0}, 0x600-buf.Len()))
+	// Pad to 0x600/0x800.
+	if dk == devices.Nano3 {
+		buf.Write(bytes.Repeat([]byte{0}, 0x800-buf.Len()))
+	} else {
+		buf.Write(bytes.Repeat([]byte{0}, 0x600-buf.Len()))
+	}
 
 	// Add body.
 	buf.Write(body)
@@ -95,15 +106,28 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 	if kind.String() == "UNKNOWN" {
 		return nil, fmt.Errorf("unsupported image magic %v", hdr.Magic)
 	}
-	if !bytes.Equal(hdr.Version[:], []byte("2.0")) {
-		return nil, fmt.Errorf("unsupported image version %v", hdr.Version)
+
+	if kind == devices.Nano3 {
+		if !bytes.Equal(hdr.Version[:], []byte("1.0")) {
+			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
+		}
+	} else {
+		if !bytes.Equal(hdr.Version[:], []byte("2.0")) {
+			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
+		}
 	}
 	if hdr.Format != 3 {
 		return nil, fmt.Errorf("can only decrypt encrypted images")
 	}
 
-	if _, err := r.Seek(0x600, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("could not seek past header")
+	if kind == devices.Nano3 {
+		if _, err := r.Seek(0x800, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("could not seek past header")
+		}
+	} else {
+		if _, err := r.Seek(0x600, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("could not seek past header")
+		}
 	}
 
 	log.Printf("Parsed %s image.", kind)
