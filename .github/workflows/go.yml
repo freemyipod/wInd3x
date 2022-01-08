@@ -1,0 +1,31 @@
+name: q3k test stuff
+
+on:
+  push:
+    branches: [ main, q3k/ci-windows ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-win64:
+    runs-on: [ self-hosted, Windows, msys2 ]
+    env:
+      # Use msvcrt/gcc/win64 runtime
+      MSYSTEM: MINGW64
+      # Do not change dir.
+      CHERE_INVOKING: yes
+    steps:
+    - uses: actions/checkout@v2
+    - name: Clean output directory
+      run: Remove-Item out -Recurse -ErrorAction Ignore
+    - name: Make output directory
+      run: mkdir out
+    - name: Build
+      run: c:\msys64\usr\bin\bash -lc "go build -o out/wInd3x.exe"
+    - name: Copy .dlls
+      run: cp c:\msys64\mingw64\bin\libusb-1.0.dll out/
+    - name: Upload artifact directory
+      uses: actions/upload-artifact@v2
+      with:
+        name: win64
+        path: out
