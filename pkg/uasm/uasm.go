@@ -64,6 +64,7 @@ const (
 	R1 Register = 1
 	R2 Register = 2
 	R3 Register = 3
+	R4 Register = 4
 	SP Register = 13
 	LR Register = 14
 	PC Register = 15

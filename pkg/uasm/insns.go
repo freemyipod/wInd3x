@@ -161,3 +161,26 @@ func (m Cmp) hydrate(c *ctx) []byte {
 	res |= 0b111000010101 << 20
 	return p32(res)
 }
+
+type Mcr struct {
+	instruction
+	Opc uint8
+	CRn uint8
+	Src Register
+	CPn uint8
+	CP  uint8
+	CRm uint8
+}
+
+func (m Mcr) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= 0b11101110 << 24
+	res |= uint32(m.Opc) << 21
+	res |= uint32(m.CRn) << 16
+	res |= m.Src.Encode() << 12
+	res |= uint32(m.CPn) << 8
+	res |= uint32(m.CP) << 5
+	res |= 1 << 4
+	res |= uint32(m.CRm)
+	return p32(res)
+}

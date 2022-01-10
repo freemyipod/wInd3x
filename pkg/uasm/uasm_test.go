@@ -10,6 +10,10 @@ func TestSample(t *testing.T) {
 	p := Program{
 		Address: 0x2202dc08,
 		Listing: []Statement{
+			// Flush caches.
+			Mov{Dest: R0, Src: Immediate(0)},
+			Mcr{CPn: 15, Opc: 0, Src: R0, CRn: 7, CRm: 5, CP: 0},
+
 			// Load offset
 			Ldr{Dest: R0, Src: Constant(0x2202db00)},
 			Ldr{Dest: R1, Src: Deref(R0, 0)},
@@ -34,6 +38,6 @@ func TestSample(t *testing.T) {
 	res := p.Assemble()
 	want, _ := hex.DecodeString("28009fe5001090e50020a0e30030d1e50030c0e5010080e2011081e2012082e2400052e3f8ffff1a04e09fe51eff2fe100db0222704d0020")
 	if !bytes.Equal(res, want) {
-		t.Fatalf("wrong assembly")
+		t.Fatalf("wrong assembly (got %s)", hex.EncodeToString(res))
 	}
 }
