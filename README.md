@@ -3,7 +3,9 @@
 wInd3x
 ======
 
-Clickwheel iPod bootrom/DFU exploit.
+Tethered clickwheel iPod bootrom/DFU exploit.
+
+Supports a handful of devices previously supported by Pwnage 2.0, newly supports Nano 5G.
 
 | Device       | Haxed DFU     | Decrypt/Dump | Notes                             |
 |--------------|---------------|--------------|-----------------------------------|
