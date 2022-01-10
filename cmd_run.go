@@ -33,7 +33,7 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Failed to read image: %w", err)
 		}
-		if err := dfu.SendImage(app.usb, data); err != nil {
+		if err := dfu.SendImage(app.usb, data, app.desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("Failed to send image: %w", err)
 		}
 		log.Printf("Image sent.")

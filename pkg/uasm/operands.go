@@ -82,3 +82,9 @@ func (i Immediate) encodeDataSource(c *ctx) uint32 {
 	res |= val
 	return res
 }
+
+func (r Register) encodeDataSource(c *ctx) uint32 {
+	var res uint32
+	res |= r.Encode()
+	return res
+}

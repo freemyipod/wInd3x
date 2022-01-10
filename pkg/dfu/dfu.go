@@ -2,8 +2,11 @@ package dfu
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
+	"log"
 	"time"
 
 	"github.com/google/gousb"
@@ -98,6 +101,7 @@ func GetState(usb *gousb.Device) (State, error) {
 
 type Status struct {
 	Err     Err
+	State   State
 	Timeout time.Duration
 }
 
@@ -114,6 +118,7 @@ func GetStatus(usb *gousb.Device) (*Status, error) {
 	timeoutMsec := (uint32(buf[2]) << 16) | (uint32(buf[1]) << 8) | uint32(buf[0])
 	return &Status{
 		Err:     Err(uint8(buf[0])),
+		State:   State(uint8(buf[4])),
 		Timeout: time.Duration(timeoutMsec) * time.Millisecond,
 	}, nil
 }
@@ -134,15 +139,32 @@ func SendChunk(usb *gousb.Device, c []byte, blockno uint16) error {
 	return nil
 }
 
-func SendImage(usb *gousb.Device, i []byte) error {
+type ProtoVersion int
+
+const (
+	// ProtoVersion1 is implemented by Nano3G.
+	ProtoVersion1 ProtoVersion = 1
+	// ProtoVersion2 is implemented by Nano4G+.
+	ProtoVersion2 ProtoVersion = 2
+)
+
+func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
 	if err := Clean(usb); err != nil {
 		return fmt.Errorf("clean: %w", err)
+	}
+
+	if version == ProtoVersion1 {
+		crc := bytes.NewBuffer(nil)
+		binary.Write(crc, binary.LittleEndian, crc32.ChecksumIEEE(i))
+		for _, b := range crc.Bytes() {
+			i = append(i, b^0xff)
+		}
 	}
 
 	buf := bytes.NewBuffer(i)
 	blockno := uint16(0)
 	for {
-		chunk := make([]byte, 0x800)
+		chunk := make([]byte, 0x400)
 		_, err := buf.Read(chunk)
 		if err != nil {
 			if err == io.EOF {
@@ -160,24 +182,35 @@ func SendImage(usb *gousb.Device, i []byte) error {
 		if want, got := ErrOk, status.Err; want != got {
 			return fmt.Errorf("chunk %d status expected %d, got %d", blockno, want, got)
 		}
-		//time.Sleep(status.timeout)
 		blockno += 1
+
 	}
+	blockno += 1
 
 	// Send zero-length download, completing image.
 	if err := SendChunk(usb, nil, blockno); err != nil {
 		return fmt.Errorf("zero length send failed: %w", err)
 	}
-	// Send status request, causing manifest.
-	st, err := GetStatus(usb)
-	if err != nil {
-		return fmt.Errorf("status failed: %w", err)
-	}
-	if st.Err != ErrOk {
-		return fmt.Errorf("status reported unexpected %d", st.Err)
+
+	for i := 0; i < 100; i++ {
+		// Send status request, causing manifest.
+		st, err := GetStatus(usb)
+		if err != nil {
+			return fmt.Errorf("status failed: %w", err)
+		}
+		if st.State == StateIdle {
+			return fmt.Errorf("unexpected idle, err: %d", st.Err)
+		}
+		if st.State == StateDnBusy {
+			continue
+		}
+		if st.State == StateManifest {
+			log.Printf("Got dfuMANIFEST, image uploaded.")
+			return nil
+		}
 	}
 
-	return nil
+	return fmt.Errorf("did not reach manifest")
 }
 
 func Clean(usb *gousb.Device) error {

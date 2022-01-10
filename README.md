@@ -9,12 +9,12 @@ Supports a handful of devices previously supported by Pwnage 2.0, newly supports
 
 | Device       | Haxed DFU     | Decrypt/Dump | Notes                             |
 |--------------|---------------|--------------|-----------------------------------|
-| Nano 3G      | *not yet*     | **YES**      |                                   |
+| Nano 3G      | **YES**       | **YES**      |                                   |
 | Nano 4G      | **YES**       | **YES**      |                                   |
 | Nano 5G      | **YES**       | **YES**      |                                   |
 | Nano 6G      | never         | never        |                                   |
 | Nano 7G      | never         | never        |                                   |
-| Classic “6G” | *not yet*     | **YES**      | Experimental, same ROM as Nano 3G |
+| Classic “6G” | **YES**       | **YES**      | Experimental, same ROM as Nano 3G |
 | iPod Touch   | never         | never        |                                   |
 
 Building
@@ -64,6 +64,7 @@ When in haxed DFU mode, the DFU will continue as previously, and you will still 
  - Images with format '4' will not be sigchecked and will not be decrypted.
  - Pwnage 2.0 images *might* work if they are built to be able to run without having to exploit footer signature checking.
 
+**Nano3G/Classic Note:** haxed DFU currently always boots images as unencrypted. We will change things around soon on all generations and use format '0' for unencrypted instead, and check explicitly for that type.
 
 To make your own DFU images, you should thus make format '4' images, not encrypt them and not sign them.
 

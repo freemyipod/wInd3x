@@ -2,6 +2,8 @@ package devices
 
 import (
 	"github.com/google/gousb"
+
+	"github.com/freemyipod/wInd3x/pkg/dfu"
 )
 
 type Kind string
@@ -34,6 +36,13 @@ func (k Kind) SoCCode() string {
 		return "8730"
 	}
 	return "INVL"
+}
+
+func (k Kind) DFUVersion() dfu.ProtoVersion {
+	if k == Nano3 {
+		return dfu.ProtoVersion1
+	}
+	return dfu.ProtoVersion2
 }
 
 type Description struct {
