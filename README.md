@@ -113,7 +113,6 @@ Known issues
 ============
 
 1. Decryption/dumping is slow, as every 0x30/0x40 we run the exploit again. We should find a better way to get code execution for this kind of tasks.
-2. Things are sometimes unstable, especially when changing modes/payloads. We should probably flush icaches more aggressively.
 
 Vulnerability
 =============
@@ -138,7 +137,7 @@ Nano 3G and Classic (”6G”)
 
 With bRequestType == 0x20 and wIndex == 6 we directly jump to code execution at the SETUP packet.
 
-This Bootroom does not have a VTable which can be easily hooked to override functions to provide Haxed DFU functionality. Another way needs to be found.
+This Bootroom does not have a VTable which can be easily hooked to override functions to provide Haxed DFU functionality. However, an 'OnImage' function pointer is present in the State structure, which we override with our own code (copied to carved out SRAM). This code reimplements the bare minimum of the hooked function, without calling any decryption/verification code on the header/body.
 
 Nano 6G and 7G
 --------------
