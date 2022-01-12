@@ -36,7 +36,7 @@ func TestSample(t *testing.T) {
 	}
 
 	res := p.Assemble()
-	want, _ := hex.DecodeString("28009fe5001090e50020a0e30030d1e50030c0e5010080e2011081e2012082e2400052e3f8ffff1a04e09fe51eff2fe100db0222704d0020")
+	want, _ := hex.DecodeString("0000a0e3150f07ee28009fe5001090e50020a0e30030d1e50030c0e5010080e2011081e2012082e2400052e3f8ffff1a04e09fe51eff2fe100db0222704d0020")
 	if !bytes.Equal(res, want) {
 		t.Fatalf("wrong assembly (got %s)", hex.EncodeToString(res))
 	}
