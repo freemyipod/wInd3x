@@ -86,20 +86,29 @@ var decryptCmd = &cobra.Command{
 			b := img.Body[ix:ixe]
 			b = append(b, bytes.Repeat([]byte{0}, 0x30-len(b))...)
 
-			data := make([]byte, 0x40)
+			tries := 10
+			var res []byte
+			for {
+				data := make([]byte, 0x40)
+				// We need to feed the previous 0x10 bytes of ciphertext for...
+				// some reason. Unless we're the first block.
+				if ix == 0 {
+					copy(data[:0x30], b)
+				} else {
+					copy(data[:0x10], img.Body[ix-0x10:ix])
+					copy(data[0x10:0x40], b)
+				}
 
-			// We need to feed the previous 0x10 bytes of ciphertext for...
-			// some reason. Unless we're the first block.
-			if ix == 0 {
-				copy(data[:0x30], b)
-			} else {
-				copy(data[:0x10], img.Body[ix-0x10:ix])
-				copy(data[0x10:0x40], b)
-			}
-
-			res, err := decrypt.Trigger(app.usb, app.ep, data)
-			if err != nil {
-				return fmt.Errorf("decryption failed: %w", err)
+				res, err = decrypt.Trigger(app.usb, app.ep, data)
+				if err == nil {
+					break
+				}
+				if tries < 1 {
+					return fmt.Errorf("decryption failed, and out of retries: %w", err)
+				} else {
+					log.Printf("Decryption failed (%v), retrying...", err)
+					tries -= 1
+				}
 			}
 
 			plaintext := res[0x10:0x40]
