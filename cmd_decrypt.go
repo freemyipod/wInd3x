@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
 	"github.com/spf13/cobra"
 )
+
+var decryptRecovery string
 
 var decryptCmd = &cobra.Command{
 	Use:   "decrypt [input] [output]",
@@ -41,42 +44,81 @@ var decryptCmd = &cobra.Command{
 
 		w := bytes.NewBuffer(nil)
 
-		// Since the decryption routine is janky and the first block
-		// is always wrong, we have to commit a few sins here.
-		log.Printf("Decrypting first block...")
-		cipher := img.Body[:0x40]
-		res, err := decrypt.Trigger(app.usb, app.ep, cipher)
-		if err != nil {
-			return fmt.Errorf("decryption failed: %w", err)
+		// Create a temporary file that we can use to continue decryption from
+		// after restarting the program.
+		var recovery io.WriteCloser
+		if decryptRecovery != "" {
+			st, err := os.Stat(decryptRecovery)
+			if err == nil {
+				log.Printf("Using recovery buffer at %s...", decryptRecovery)
+				sz := st.Size()
+				if (sz % 0x30) != 0 {
+					return fmt.Errorf("recovery buffer invalid size (%x)", sz)
+				}
+				f, err := os.Open(decryptRecovery)
+				if err != nil {
+					return fmt.Errorf("could not open recovery buffer: %w", err)
+				}
+				if _, err := io.Copy(w, f); err != nil {
+					return fmt.Errorf("could not read recovery buffer: %w", err)
+				}
+				f.Close()
+			} else if os.IsNotExist(err) {
+				log.Printf("Creating recovery buffer at %s...", decryptRecovery)
+			} else {
+				return fmt.Errorf("could not access recoveyr buffer: %w", err)
+			}
+			recovery, err = os.OpenFile(decryptRecovery, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return fmt.Errorf("could not open recovery buffer for append: %w", err)
+			}
 		}
-		if _, err := w.Write(res); err != nil {
-			return fmt.Errorf("write failed: %w", err)
-		}
-		ix := 0x40
+
+		ix := w.Len()
 		for {
 			log.Printf("Decrypting 0x%x...", ix)
+
+			// Get plaintext block, pad to 0x30.
 			ixe := ix + 0x30
 			if ixe > len(img.Body) {
 				ixe = len(img.Body)
 			}
 			b := img.Body[ix:ixe]
 			b = append(b, bytes.Repeat([]byte{0}, 0x30-len(b))...)
+
 			data := make([]byte, 0x40)
-			copy(data[:0x10], cipher[0x30:0x40])
-			copy(data[0x10:0x40], b)
-			res, err = decrypt.Trigger(app.usb, app.ep, data)
+
+			// We need to feed the previous 0x10 bytes of ciphertext for...
+			// some reason. Unless we're the first block.
+			if ix == 0 {
+				copy(data[:0x30], b)
+			} else {
+				copy(data[:0x10], img.Body[ix-0x10:ix])
+				copy(data[0x10:0x40], b)
+			}
+
+			res, err := decrypt.Trigger(app.usb, app.ep, data)
 			if err != nil {
 				return fmt.Errorf("decryption failed: %w", err)
 			}
-			if _, err := w.Write(res[0x10:]); err != nil {
+
+			plaintext := res[0x10:0x40]
+			if ix == 0 {
+				plaintext = res[0x00:0x30]
+			}
+			if recovery != nil {
+				if _, err := recovery.Write(plaintext); err != nil {
+					return fmt.Errorf("write to recovery failed: %w", err)
+				}
+			}
+			if _, err := w.Write(plaintext); err != nil {
 				return fmt.Errorf("write failed: %w", err)
 			}
 
-			if ixe != ix+0x30 {
+			ix += 0x30
+			if ix >= len(img.Body) {
 				break
 			}
-			cipher = data
-			ix += 0x30
 		}
 
 		// Write image.
