@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
+	"github.com/golang/glog"
 )
 
 const (
@@ -116,6 +116,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}
 	}
+
 	if hdr.Format != 3 {
 		return nil, fmt.Errorf("can only decrypt encrypted images")
 	}
@@ -130,7 +131,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
-	log.Printf("Parsed %s image.", kind)
+	glog.Infof("Parsed %s image.", kind)
 
 	body := make([]byte, hdr.BodyLength)
 	if _, err := r.Read(body); err != nil {

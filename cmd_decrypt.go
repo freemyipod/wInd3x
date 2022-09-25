@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"time"
 
-	"github.com/freemyipod/wInd3x/pkg/dfu/image"
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
+	"github.com/freemyipod/wInd3x/pkg/image"
+	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +41,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("image is for %s, but %s is connected", img.DeviceKind, app.desc.Kind)
 		}
 
-		log.Printf("Decrypting 0x%x bytes...", len(img.Body))
+		glog.Infof("Decrypting 0x%x bytes...", len(img.Body))
 
 		w := bytes.NewBuffer(nil)
 
@@ -51,7 +51,7 @@ var decryptCmd = &cobra.Command{
 		if decryptRecovery != "" {
 			st, err := os.Stat(decryptRecovery)
 			if err == nil {
-				log.Printf("Using recovery buffer at %s...", decryptRecovery)
+				glog.Infof("Using recovery buffer at %s...", decryptRecovery)
 				sz := st.Size()
 				if (sz % 0x30) != 0 {
 					return fmt.Errorf("recovery buffer invalid size (%x)", sz)
@@ -65,7 +65,7 @@ var decryptCmd = &cobra.Command{
 				}
 				f.Close()
 			} else if os.IsNotExist(err) {
-				log.Printf("Creating recovery buffer at %s...", decryptRecovery)
+				glog.Infof("Creating recovery buffer at %s...", decryptRecovery)
 			} else {
 				return fmt.Errorf("could not access recoveyr buffer: %w", err)
 			}
@@ -77,7 +77,7 @@ var decryptCmd = &cobra.Command{
 
 		ix := w.Len()
 		for {
-			log.Printf("Decrypting 0x%x (%.3f%%)...", ix, float64(ix*100)/float64(len(img.Body)))
+			glog.Infof("Decrypting 0x%x (%.3f%%)...", ix, float64(ix*100)/float64(len(img.Body)))
 
 			// Get plaintext block, pad to 0x30.
 			ixe := ix + 0x30
@@ -107,7 +107,7 @@ var decryptCmd = &cobra.Command{
 				if tries < 1 {
 					return fmt.Errorf("decryption failed, and out of retries: %w", err)
 				} else {
-					log.Printf("Decryption failed (%v), retrying...", err)
+					glog.Infof("Decryption failed (%v), retrying...", err)
 					time.Sleep(100 * time.Millisecond)
 					tries -= 1
 				}
@@ -142,7 +142,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("could not write image: %w", err)
 		}
 
-		log.Printf("Done!")
+		glog.Infof("Done!")
 
 		return nil
 	},

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/dfu"
@@ -28,7 +28,7 @@ var runCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		log.Printf("Uploading %s...", path)
+		glog.Infof("Uploading %s...", path)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("Failed to read image: %w", err)
@@ -36,7 +36,7 @@ var runCmd = &cobra.Command{
 		if err := dfu.SendImage(app.usb, data, app.desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("Failed to send image: %w", err)
 		}
-		log.Printf("Image sent.")
+		glog.Infof("Image sent.")
 
 		return nil
 	},

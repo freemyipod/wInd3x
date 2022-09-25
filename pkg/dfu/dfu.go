@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"log"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/gousb"
 )
 
@@ -205,7 +205,7 @@ func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
 			continue
 		}
 		if st.State == StateManifest {
-			log.Printf("Got dfuMANIFEST, image uploaded.")
+			glog.Infof("Got dfuMANIFEST, image uploaded.")
 			return nil
 		}
 	}

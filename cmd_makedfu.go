@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
-	"github.com/freemyipod/wInd3x/pkg/dfu/image"
+	"github.com/freemyipod/wInd3x/pkg/image"
 )
 
 var (
