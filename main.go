@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/google/gousb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
@@ -37,7 +39,15 @@ func main() {
 	rootCmd.AddCommand(makeDFUCmd)
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(decryptCmd)
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 	rootCmd.Execute()
+}
+
+func init() {
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	flag.Set("logtostderr", "true")
 }
 
 func newContext() (*gousb.Context, error) {
