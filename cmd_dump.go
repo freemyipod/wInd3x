@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -37,6 +38,7 @@ var dumpCmd = &cobra.Command{
 		}
 		defer f.Close()
 
+		start := time.Now()
 		for i := uint32(0); i < size; i += 0x40 {
 			o := offset + i
 			glog.Infof("Dumping %x...", o)
@@ -48,7 +50,8 @@ var dumpCmd = &cobra.Command{
 				return fmt.Errorf("failed to write: %w", err)
 			}
 		}
-		glog.Infof("Done!")
+		took := time.Since(start)
+		glog.Infof("Done! %d bytes in %d seconds (%d bytes per second)", size, int(took.Seconds()), int(float64(size)/took.Seconds()))
 
 		return nil
 	},

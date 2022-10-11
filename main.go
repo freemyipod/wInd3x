@@ -39,6 +39,8 @@ func main() {
 	rootCmd.AddCommand(makeDFUCmd)
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(decryptCmd)
+	nandCmd.AddCommand(nandReadCmd)
+	rootCmd.AddCommand(nandCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}
