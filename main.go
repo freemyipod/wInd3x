@@ -41,6 +41,9 @@ func main() {
 	rootCmd.AddCommand(decryptCmd)
 	nandCmd.AddCommand(nandReadCmd)
 	rootCmd.AddCommand(nandCmd)
+	norCmd.AddCommand(norReadCmd)
+	rootCmd.AddCommand(norCmd)
+	rootCmd.AddCommand(spewCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -78,7 +81,7 @@ type app struct {
 	ctx  *gousb.Context
 	usb  *gousb.Device
 	desc *devices.Description
-	ep   *exploit.Parameters
+	ep   exploit.Parameters
 }
 
 func (a *app) close() {

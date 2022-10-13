@@ -74,7 +74,7 @@ type Immediate uint32
 
 func (i Immediate) encodeDataSource(c *ctx) uint32 {
 	val := uint32(i)
-	if val >= (1 << 12) {
+	if val >= (1 << 11) {
 		panic("immediate too large")
 	}
 	var res uint32

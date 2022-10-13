@@ -17,14 +17,14 @@ var nandCmd = &cobra.Command{
 	Long:  "Manipulate NAND Flash on the device. Currently this is EXPERIMENTAL, as the NAND access methods are not well reverse engineered.",
 }
 
-func readPageOffset(a *app, bank, page, offset uint32) ([]byte, error) {
+func nandReadPageOffset(a *app, bank, page, offset uint32) ([]byte, error) {
 	ep := a.ep
 	usb := a.usb
 
-	listing := ep.NANDReadPage(bank, page, offset)
-	listing = append(listing, ep.HandlerFooter(0x20000000)...)
+	listing, dataAddr := ep.NANDReadPage(bank, page, offset)
+	listing = append(listing, ep.HandlerFooter(dataAddr)...)
 	read := uasm.Program{
-		Address: ep.ExecAddr,
+		Address: ep.ExecAddr(),
 		Listing: listing,
 	}
 
@@ -32,17 +32,9 @@ func readPageOffset(a *app, bank, page, offset uint32) ([]byte, error) {
 		return nil, fmt.Errorf("clean failed: %w", err)
 	}
 
-	if _, err := exploit.RCE(usb, ep, read.Assemble(), nil); err != nil {
-		return nil, fmt.Errorf("failed to execute read payload: %w", err)
-	}
-
-	resBuf := make([]byte, 0x40)
-	n, err := usb.Control(0xa1, uint8(dfu.RequestUpload), 0, 0, resBuf)
+	resBuf, err := exploit.RCE(usb, ep, read.Assemble(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read data: %w", err)
-	}
-	if n != 0x40 {
-		return nil, fmt.Errorf("only got %x bytes", n)
+		return nil, fmt.Errorf("failed to execute read payload: %w", err)
 	}
 	return resBuf, nil
 }
@@ -66,20 +58,20 @@ var nandReadCmd = &cobra.Command{
 		ep := app.ep
 		usb := app.usb
 
-		if ep.NANDInit == nil {
-			return fmt.Errorf("currently only implemented for N5G")
-		}
-
 		f, err := os.Create(args[1])
 		if err != nil {
 			return err
 		}
 
-		listing := ep.DisableICache
-		listing = append(listing, ep.NANDInit...)
+		listing := ep.DisableICache()
+		payload, err := ep.NANDInit(bank)
+		if err != nil {
+			return err
+		}
+		listing = append(listing, payload...)
 		listing = append(listing, ep.HandlerFooter(0x20000000)...)
 		init := uasm.Program{
-			Address: ep.ExecAddr,
+			Address: ep.ExecAddr(),
 			Listing: listing,
 		}
 
@@ -94,7 +86,7 @@ var nandReadCmd = &cobra.Command{
 		for p := uint32(0); p < 0x100; p += 1 {
 			glog.Infof("%.2f%%...", float32(p)*100/0x100)
 			for offs := uint32(0); offs < 0x600; offs += 0x40 {
-				data, err := readPageOffset(app, bank, p, offs)
+				data, err := nandReadPageOffset(app, bank, p, offs)
 				if err != nil {
 					return err
 				}
