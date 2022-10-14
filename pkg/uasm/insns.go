@@ -164,12 +164,12 @@ func (m Cmp) hydrate(c *ctx) []byte {
 
 type Mcr struct {
 	instruction
-	Opc uint8
-	CRn uint8
-	Src Register
-	CPn uint8
-	CP  uint8
-	CRm uint8
+	Opc  uint8
+	CRn  uint8
+	Src  Register
+	CPn  uint8
+	Opc2 uint8
+	CRm  uint8
 }
 
 func (m Mcr) hydrate(c *ctx) []byte {
@@ -179,7 +179,34 @@ func (m Mcr) hydrate(c *ctx) []byte {
 	res |= uint32(m.CRn) << 16
 	res |= m.Src.Encode() << 12
 	res |= uint32(m.CPn) << 8
-	res |= uint32(m.CP) << 5
+	res |= uint32(m.Opc2) << 5
+	res |= 1 << 4
+	res |= uint32(m.CRm)
+	return p32(res)
+}
+
+type Mrc struct {
+	instruction
+	Opc uint8
+	// CRn is the coprocessor register number.
+	CRn  uint8
+	Dest Register
+	// CPn is the coprocessor number (eg. CP15).
+	CPn  uint8
+	Opc2 uint8
+	// CRm is the additional coprocessor register number.
+	CRm uint8
+}
+
+func (m Mrc) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= 0b11101110 << 24
+	res |= uint32(m.Opc) << 21
+	res |= 1 << 20
+	res |= uint32(m.CRn) << 16
+	res |= m.Dest.Encode() << 12
+	res |= uint32(m.CPn) << 8
+	res |= uint32(m.Opc2) << 5
 	res |= 1 << 4
 	res |= uint32(m.CRm)
 	return p32(res)
