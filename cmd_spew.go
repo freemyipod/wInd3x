@@ -203,6 +203,9 @@ var peripherals = map[devices.Kind][]peripheral{
 			{name: "CHIPIDH", address: 0x3d10_0008},
 			{name: "DIEIDL", address: 0x3d10_000C},
 			{name: "DIEIDH", address: 0x3d10_0010},
+			// This is read by ChipId.efi.
+			// eg. 00000004
+			{name: "CHIPIDUNK2", address: 0x3d10_0014},
 		}},
 	},
 	devices.Nano3: []peripheral{
