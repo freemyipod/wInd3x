@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/syscfg"
@@ -146,6 +148,125 @@ func dumpCP15(app *app) {
 	}
 }
 
+type peripheral struct {
+	name      string
+	registers []register
+}
+
+type register struct {
+	name    string
+	address uint32
+	parse   func(v uint32)
+}
+
+var n3gates = map[int]string{
+	0x00: "SHA",
+	0x01: "LCD",
+	0x02: "USBOTG",
+	0x03: "SMx",
+	0x04: "SM1",
+	0x0A: "AES",
+	0x08: "NAND",
+	0x0C: "NANDECC",
+	0x19: "DMAC0",
+	0x1A: "DMAC1",
+	0x1E: "ROM",
+	0x22: "SPI0",
+	0x23: "USBPHY",
+	0x2B: "SPI1",
+	0x2C: "GPIO",
+	0x2E: "CHIPID",
+	0x2F: "SPI2",
+}
+
+func printN3Gates(v uint32) {
+	var gates []string
+	for i := 0; i < 32; i++ {
+		if (v & (1 << i)) == 0 {
+			gate := n3gates[i]
+			if gate == "" {
+				gate = fmt.Sprintf("%d", i)
+			}
+			gates = append(gates, gate)
+		}
+	}
+	fmt.Printf("%08x, %s\n", v, strings.Join(gates, ","))
+}
+
+var peripherals = map[devices.Kind][]peripheral{
+	devices.Nano5: []peripheral{
+		{name: "CHIPID", registers: []register{
+			{name: "CHIPIDUNK", address: 0x3d10_0000},
+			// eg. 19000011
+			{name: "CHIPIDL", address: 0x3d10_0004},
+			// eg. 8730000b
+			{name: "CHIPIDH", address: 0x3d10_0008},
+			{name: "DIEIDL", address: 0x3d10_000C},
+			{name: "DIEIDH", address: 0x3d10_0010},
+		}},
+	},
+	devices.Nano3: []peripheral{
+		{name: "CLKGEN", registers: []register{
+			{name: "CLKCON0", address: 0x3c50_0000},
+			{name: "CLKCON1", address: 0x3c50_0004},
+			{name: "CLKCON2", address: 0x3c50_0008},
+			{name: "CLKCON3", address: 0x3c50_000C},
+			{name: "CLKCON4", address: 0x3c50_0010},
+			{name: "CLKCON5", address: 0x3c50_0014},
+
+			{name: "PLLCON0", address: 0x3c50_0020},
+			{name: "PLLCON1", address: 0x3c50_0024},
+			{name: "PLLCON2", address: 0x3c50_0028},
+
+			{name: "PLLCNT0", address: 0x3c50_0030},
+			{name: "PLLCNT1", address: 0x3c50_0034},
+			{name: "PLLCNT2", address: 0x3c50_0038},
+
+			{name: "PLLLOCK", address: 0x3c50_0040},
+			{name: "PLLMODE", address: 0x3c50_0044},
+
+			{name: "GATES0", address: 0x3c50_0048, parse: func(v uint32) {
+				printN3Gates(v)
+			}},
+			{name: "GATES1", address: 0x3c50_004C, parse: func(v uint32) {
+				printN3Gates(v + 0x20)
+			}},
+		}},
+		{name: "WATCHDOG", registers: []register{
+			{name: "WDTCON", address: 0x3c80_0000},
+			{name: "WDTCNT", address: 0x3c80_0004},
+		}},
+		{name: "CHIPID", registers: []register{
+			{name: "CHIPIDUNK", address: 0x3d10_0000},
+			// eg. 84000019
+			{name: "CHIPIDL", address: 0x3d10_0004},
+			// eg. 00008702
+			{name: "CHIPIDH", address: 0x3d10_0008},
+			{name: "DIEIDL", address: 0x3d10_000C},
+			{name: "DIEIDH", address: 0x3d10_0010},
+		}},
+		{name: "EDGEIC", registers: []register{
+			{name: "UNK0", address: 0x38e0_2000},
+			{name: "UNK4", address: 0x38e0_2004},
+			{name: "UNK8", address: 0x38e0_2008},
+			{name: "UNKC", address: 0x38e0_200c},
+		}},
+		// Named per N3G/N4G rockbox branch.
+		{name: "SYSALV", registers: []register{
+			{name: "ALVCON", address: 0x39a0_0000},
+			{name: "ALVUNK4", address: 0x39a0_0004},
+			{name: "ALVUNK100", address: 0x39a0_0100},
+			{name: "ALVUNK104", address: 0x39a0_0104},
+
+			{name: "ALVTCOM", address: 0x39a0_006c},
+			{name: "ALVTEND", address: 0x39a0_0070},
+			{name: "ALVTDIV", address: 0x39a0_0074},
+			{name: "ALVTCNT", address: 0x39a0_0078},
+			{name: "ALVTSTAT", address: 0x39a0_007c},
+		}},
+	},
+}
+
 var spewCmd = &cobra.Command{
 	Use:   "spew",
 	Short: "Display information about the connected device",
@@ -177,6 +298,26 @@ var spewCmd = &cobra.Command{
 				return fmt.Errorf("failed to parse syscfg: %w", err)
 			}
 			scfg.Debug(os.Stdout)
+		}
+
+		for _, p := range peripherals[app.desc.Kind] {
+			fmt.Printf("\n%s\n", p.name)
+			fmt.Printf("%s\n", strings.Repeat("-", len(p.name)))
+			for _, reg := range p.registers {
+				data, err := readFrom(app, reg.address)
+				fmt.Printf("  %s: ", reg.name)
+				if err != nil {
+					fmt.Printf("error: %v\n", err)
+				} else {
+					var u32 uint32
+					binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &u32)
+					if reg.parse != nil {
+						reg.parse(u32)
+					} else {
+						fmt.Printf("%08x\n", u32)
+					}
+				}
+			}
 		}
 
 		fmt.Println("\nGPIO")
