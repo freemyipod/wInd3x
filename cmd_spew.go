@@ -196,16 +196,16 @@ func printN3Gates(v uint32) {
 var peripherals = map[devices.Kind][]peripheral{
 	devices.Nano5: []peripheral{
 		{name: "CHIPID", registers: []register{
-			{name: "CHIPIDUNK", address: 0x3d10_0000},
+			// eg. 00000001
+			{name: "CID_VALID", address: 0x3d10_0000},
 			// eg. 19000011
 			{name: "CHIPIDL", address: 0x3d10_0004},
 			// eg. 8730000b
 			{name: "CHIPIDH", address: 0x3d10_0008},
 			{name: "DIEIDL", address: 0x3d10_000C},
 			{name: "DIEIDH", address: 0x3d10_0010},
-			// This is read by ChipId.efi.
 			// eg. 00000004
-			{name: "CHIPIDUNK2", address: 0x3d10_0014},
+			{name: "ECID_VERSION", address: 0x3d10_0014},
 		}},
 	},
 	devices.Nano3: []peripheral{
