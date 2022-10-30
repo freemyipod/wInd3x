@@ -26,8 +26,8 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/tetratelabs/wazero v1.0.0-pre.1 h1:bUZ4vf21c36RmgA3enNOlLgPElEVDYoRJJ9+McRGF6Q=
-github.com/tetratelabs/wazero v1.0.0-pre.1/go.mod h1:M8UDNECGm/HVjOfq0EOe4QfCY9Les1eq54IChMLETbc=
+github.com/tetratelabs/wazero v1.0.0-rc.2 h1:OA3UUynnoqxrjCQ94mpAtdO4/oMxFQVNL2BXDMOc66Q=
+github.com/tetratelabs/wazero v1.0.0-rc.2/go.mod h1:wYx2gNRg8/WihJfSDxA1TIL8H+GkfLYm+bIfbblu9VQ=
 golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 h1:2B5p2L5IfGiD7+b9BOoRMC6DgObAVZV+Fsp050NqXik=
 golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

@@ -56,7 +56,7 @@ func (e *edk2) free(ctx context.Context, ptr uint32) {
 }
 
 func (e *edk2) write(ctx context.Context, ptr uint32, data []byte) {
-	if !e.module.Memory().Write(ctx, ptr, data) {
+	if !e.module.Memory().Write(ptr, data) {
 		panic("memory write failed")
 	}
 }
@@ -70,7 +70,7 @@ func (e *edk2) writeu32(ctx context.Context, ptr, data uint32) {
 }
 
 func (e *edk2) read(ctx context.Context, ptr uint32, size int) []byte {
-	res, ok := e.module.Memory().Read(ctx, ptr, uint32(size))
+	res, ok := e.module.Memory().Read(ptr, uint32(size))
 	if !ok {
 		panic("memory read failed")
 	}
@@ -114,7 +114,9 @@ func getedk2() *edk2 {
 	}
 
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig().
+		// Ensure a timeout or canceled context stops a wasm function.
+		WithCloseOnContextDone(true))
 	if _, err := wasi_snapshot_preview1.Instantiate(ctx, r); err != nil {
 		panic(err)
 	}
@@ -123,11 +125,7 @@ func getedk2() *edk2 {
 	}
 
 	config := wazero.NewModuleConfig().WithStdout(os.Stdout).WithStderr(os.Stderr)
-	code, err := r.CompileModule(ctx, wasm, wazero.NewCompileConfig())
-	if err != nil {
-		panic(err)
-	}
-	mod, err := r.InstantiateModule(ctx, code, config)
+	mod, err := r.InstantiateWithConfig(ctx, wasm, config)
 	if err != nil {
 		panic(err)
 	}
