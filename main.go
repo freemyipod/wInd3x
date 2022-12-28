@@ -44,6 +44,8 @@ func main() {
 	norCmd.AddCommand(norReadCmd)
 	rootCmd.AddCommand(norCmd)
 	rootCmd.AddCommand(spewCmd)
+	cfwCmd.AddCommand(cfwN5gTestCmd)
+	rootCmd.AddCommand(cfwCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}

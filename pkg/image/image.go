@@ -117,10 +117,6 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
-	if hdr.Format != 3 {
-		return nil, fmt.Errorf("can only decrypt encrypted images")
-	}
-
 	if kind == devices.Nano3 {
 		if _, err := r.Seek(0x800, io.SeekStart); err != nil {
 			return nil, fmt.Errorf("could not seek past header")
