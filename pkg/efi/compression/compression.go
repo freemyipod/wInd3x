@@ -89,7 +89,7 @@ func (e *edk2) readu32(ctx context.Context, ptr uint32) uint32 {
 }
 
 var (
-	edk2 *edk2
+	edk *edk2
 )
 
 func edk2Error(code int32) error {
@@ -109,8 +109,8 @@ func edk2Error(code int32) error {
 
 func getedk2() *edk2 {
 	// Already guarded by 'mu'.
-	if edk2 != nil {
-		return edk2
+	if edk != nil {
+		return edk
 	}
 
 	ctx := context.Background()
@@ -140,7 +140,7 @@ func getedk2() *edk2 {
 		decompressF: mod.ExportedFunction("TianoDecompress"),
 	}
 
-	edk2 = e
+	edk = e
 	return e
 }
 
