@@ -116,6 +116,38 @@ func (m Mov) hydrate(c *ctx) []byte {
 	return p32(res)
 }
 
+type And struct {
+	instruction
+	Dest  Register
+	Src   Register
+	Compl DataSource
+}
+
+func (a And) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= a.Dest.Encode() << 12
+	res |= a.Src.Encode() << 16
+	res |= a.Compl.encodeDataSource(c)
+	res |= 0b111000000000 << 20
+	return p32(res)
+}
+
+type Or struct {
+	instruction
+	Dest  Register
+	Src   Register
+	Compl DataSource
+}
+
+func (a Or) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= a.Dest.Encode() << 12
+	res |= a.Src.Encode() << 16
+	res |= a.Compl.encodeDataSource(c)
+	res |= 0b111000011000 << 20
+	return p32(res)
+}
+
 type Add struct {
 	instruction
 	Dest  Register

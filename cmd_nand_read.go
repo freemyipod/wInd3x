@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
@@ -17,9 +18,9 @@ var nandCmd = &cobra.Command{
 	Long:  "Manipulate NAND Flash on the device. Currently this is EXPERIMENTAL, as the NAND access methods are not well reverse engineered.",
 }
 
-func nandReadPageOffset(a *app, bank, page, offset uint32) ([]byte, error) {
-	ep := a.ep
-	usb := a.usb
+func nandReadPageOffset(a *app.App, bank, page, offset uint32) ([]byte, error) {
+	ep := a.Ep
+	usb := a.Usb
 
 	listing, dataAddr := ep.NANDReadPage(bank, page, offset)
 	listing = append(listing, ep.HandlerFooter(dataAddr)...)
@@ -45,18 +46,18 @@ var nandReadCmd = &cobra.Command{
 	Long:  "Read a 0x60000 'bank' (maybe?) of NAND. Slowly. Bank 0 contains the bootloader.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := newApp()
+		app, err := app.New()
 		if err != nil {
 			return err
 		}
-		defer app.close()
+		defer app.Close()
 
 		bank, err := parseNumber(args[0])
 		if err != nil {
 			return fmt.Errorf("invalid bank")
 		}
-		ep := app.ep
-		usb := app.usb
+		ep := app.Ep
+		usb := app.Usb
 
 		f, err := os.Create(args[1])
 		if err != nil {
@@ -75,7 +76,7 @@ var nandReadCmd = &cobra.Command{
 			Listing: listing,
 		}
 
-		if err := dfu.Clean(app.usb); err != nil {
+		if err := dfu.Clean(app.Usb); err != nil {
 			return fmt.Errorf("clean failed: %w", err)
 		}
 

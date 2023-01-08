@@ -3,6 +3,7 @@ package image
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -91,6 +92,10 @@ type IMG1 struct {
 	Body       []byte
 }
 
+var (
+	ErrNotImage1 = errors.New("Not an IMG1 file")
+)
+
 func Read(r io.ReadSeeker) (*IMG1, error) {
 	var hdr IMG1Header
 	if err := binary.Read(r, binary.LittleEndian, &hdr); err != nil {
@@ -104,7 +109,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 	if kind.String() == "UNKNOWN" {
-		return nil, fmt.Errorf("unsupported image magic %v", hdr.Magic)
+		return nil, ErrNotImage1
 	}
 
 	if kind == devices.Nano3 {

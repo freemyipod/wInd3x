@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
+	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/exploit/dumpmem"
 )
 
@@ -17,11 +18,11 @@ var dumpCmd = &cobra.Command{
 	Long:  "Read memory from a connected device and write results to a file. Not very fast.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := newApp()
+		app, err := app.New()
 		if err != nil {
 			return err
 		}
-		defer app.close()
+		defer app.Close()
 
 		offset, err := parseNumber(args[0])
 		if err != nil {
@@ -42,7 +43,7 @@ var dumpCmd = &cobra.Command{
 		for i := uint32(0); i < size; i += 0x40 {
 			o := offset + i
 			glog.Infof("Dumping %x...", o)
-			data, err := dumpmem.Trigger(app.usb, app.ep, o)
+			data, err := dumpmem.Trigger(app.Usb, app.Ep, o)
 			if err != nil {
 				return fmt.Errorf("failed to run wInd3x exploit: %w", err)
 			}

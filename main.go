@@ -7,12 +7,8 @@ import (
 	"strings"
 
 	"github.com/google/gousb"
-	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"github.com/freemyipod/wInd3x/pkg/devices"
-	"github.com/freemyipod/wInd3x/pkg/exploit"
 )
 
 var rootCmd = &cobra.Command{
@@ -45,6 +41,7 @@ func main() {
 	rootCmd.AddCommand(norCmd)
 	rootCmd.AddCommand(spewCmd)
 	cfwCmd.AddCommand(cfwN5gTestCmd)
+	cfwCmd.AddCommand(cfwRunCmd)
 	rootCmd.AddCommand(cfwCmd)
 	if !flag.Parsed() {
 		flag.Parse()
@@ -77,47 +74,6 @@ func newContext() (*gousb.Context, error) {
 	case res := <-resC:
 		return res, nil
 	}
-}
-
-type app struct {
-	ctx  *gousb.Context
-	usb  *gousb.Device
-	desc *devices.Description
-	ep   exploit.Parameters
-}
-
-func (a *app) close() {
-	a.ctx.Close()
-}
-
-func newApp() (*app, error) {
-	ctx, err := newContext()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize USB: %w", err)
-	}
-
-	var errs error
-	for _, deviceDesc := range devices.Descriptions {
-		usb, err := ctx.OpenDeviceWithVIDPID(deviceDesc.DFUVID, deviceDesc.DFUPID)
-		if err != nil {
-			errs = multierror.Append(errs, err)
-		}
-
-		if usb == nil {
-			continue
-		}
-
-		return &app{
-			ctx:  ctx,
-			usb:  usb,
-			desc: &deviceDesc,
-			ep:   exploit.ParametersForKind[deviceDesc.Kind],
-		}, nil
-	}
-	if errs == nil {
-		return nil, fmt.Errorf("no device found")
-	}
-	return nil, errs
 }
 
 func parseNumber(s string) (uint32, error) {

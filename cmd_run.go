@@ -7,8 +7,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
+	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
-	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
 )
 
 var runCmd = &cobra.Command{
@@ -17,15 +17,11 @@ var runCmd = &cobra.Command{
 	Long:  "Run a DFU image (signed/encrypted or unsigned) on a connected device, starting haxed dfu mode first if necessary.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := newApp()
+		app, err := app.New()
 		if err != nil {
 			return err
 		}
-		defer app.close()
-
-		if err := haxeddfu.Trigger(app.usb, app.ep, false); err != nil {
-			return fmt.Errorf("Failed to run wInd3x exploit: %w", err)
-		}
+		defer app.Close()
 
 		path := args[0]
 		glog.Infof("Uploading %s...", path)
@@ -33,7 +29,10 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("Failed to read image: %w", err)
 		}
-		if err := dfu.SendImage(app.usb, data, app.desc.Kind.DFUVersion()); err != nil {
+		if err := dfu.Clean(app.Usb); err != nil {
+			return fmt.Errorf("Failed to clean: %w", err)
+		}
+		if err := dfu.SendImage(app.Usb, data, app.Desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("Failed to send image: %w", err)
 		}
 		glog.Infof("Image sent.")

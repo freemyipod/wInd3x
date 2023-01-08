@@ -7,47 +7,49 @@ import (
 	"os"
 	"strings"
 
+	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/syscfg"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
+	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
-func readFrom(app *app, addr uint32) ([]byte, error) {
-	if err := dfu.Clean(app.usb); err != nil {
+func readFrom(app *app.App, addr uint32) ([]byte, error) {
+	if err := dfu.Clean(app.Usb); err != nil {
 		return nil, fmt.Errorf("clean failed: %w", err)
 	}
 
 	dump := uasm.Program{
-		Address: app.ep.ExecAddr(),
-		Listing: app.ep.HandlerFooter(addr),
+		Address: app.Ep.ExecAddr(),
+		Listing: app.Ep.HandlerFooter(addr),
 	}
-	res, err := exploit.RCE(app.usb, app.ep, dump.Assemble(), nil)
+	res, err := exploit.RCE(app.Usb, app.Ep, dump.Assemble(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute dump payload: %w", err)
 	}
 	return res, nil
 }
 
-func readCP15(app *app, register, reg2, opc2 uint8) (uint32, error) {
-	insns := app.ep.DisableICache()
+func readCP15(app *app.App, register, reg2, opc2 uint8) (uint32, error) {
+	insns := app.Ep.DisableICache()
 	insns = append(insns,
 		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000000)},
 		// Read ID code.
 		uasm.Mrc{CPn: 15, Opc: 0, Dest: uasm.R0, CRn: register, CRm: reg2, Opc2: opc2},
 		uasm.Str{Src: uasm.R0, Dest: uasm.Deref(uasm.R1, 0)},
 	)
-	insns = append(insns, app.ep.HandlerFooter(0x22000000)...)
+	insns = append(insns, app.Ep.HandlerFooter(0x22000000)...)
 	program := uasm.Program{
-		Address: app.ep.ExecAddr(),
+		Address: app.Ep.ExecAddr(),
 		Listing: insns,
 	}
-	if err := dfu.Clean(app.usb); err != nil {
+	if err := dfu.Clean(app.Usb); err != nil {
 		return 0, fmt.Errorf("clean failed: %w", err)
 	}
-	data, err := exploit.RCE(app.usb, app.ep, program.Assemble(), nil)
+	data, err := exploit.RCE(app.Usb, app.Ep, program.Assemble(), nil)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to read ID code: %w", err)
 	}
@@ -56,7 +58,32 @@ func readCP15(app *app, register, reg2, opc2 uint8) (uint32, error) {
 	return idcode, nil
 }
 
-func dumpCP15(app *app) {
+func readCP14(app *app.App, opc2, reg2 uint8) (uint32, error) {
+	insns := app.Ep.DisableICache()
+	insns = append(insns,
+		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000000)},
+		// Read ID code.
+		uasm.Mrc{CPn: 14, Opc: 0, Dest: uasm.R0, CRn: 0, CRm: reg2, Opc2: opc2},
+		uasm.Str{Src: uasm.R0, Dest: uasm.Deref(uasm.R1, 0)},
+	)
+	insns = append(insns, app.Ep.HandlerFooter(0x22000000)...)
+	program := uasm.Program{
+		Address: app.Ep.ExecAddr(),
+		Listing: insns,
+	}
+	if err := dfu.Clean(app.Usb); err != nil {
+		return 0, fmt.Errorf("clean failed: %w", err)
+	}
+	data, err := exploit.RCE(app.Usb, app.Ep, program.Assemble(), nil)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to read ID code: %w", err)
+	}
+	var idcode uint32
+	binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &idcode)
+	return idcode, nil
+}
+
+func dumpCP15(app *app.App) {
 	is1176 := false
 	idcode, err := readCP15(app, 0, 0, 0)
 	if err != nil {
@@ -276,16 +303,60 @@ var spewCmd = &cobra.Command{
 	Long:  "Displays SysCfg, GPIO, ... info from the connected device. Useful for reverse engineering and development.",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := newApp()
+		app, err := app.New()
 		if err != nil {
 			return err
 		}
-		defer app.close()
+		defer app.Close()
+
+		addr := uint32(0x3800_0000)
+		for {
+			addr += 0x0010_0000
+			if addr >= 0x3c00_0000 {
+				break
+			}
+			data, err := readFrom(app, addr)
+			if err != nil {
+				return err
+			}
+			var u32 uint32
+			binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &u32)
+			glog.Infof("%08x: %08x", addr, u32)
+		}
+
+		return nil
 
 		fmt.Println("\nCP15")
 		fmt.Println("----")
 
 		dumpCP15(app)
+
+		fmt.Println("\nCP14 (debug)")
+		fmt.Println("----")
+
+		fmt.Printf("  DIDR: ")
+		didr, err := readCP14(app, 0, 0)
+		if err != nil {
+			fmt.Printf("error: %v\n", err)
+		} else {
+			// 0x1512_1004
+			// Watchpoint pairs: 1
+			// Breakpoint pairs: 5
+			// Breakpoint pairs with context ID: 1
+			// Debug architecture: 2 (v6.1)
+			// Trustzone Features
+			// Revision: 4, Variant: 0,
+			fmt.Printf("0x%08x\n", didr)
+		}
+
+		fmt.Printf("  DSCR: ")
+		dscr, err := readCP14(app, 0, 1)
+		if err != nil {
+			fmt.Printf("error: %v\n", err)
+		} else {
+			// 0x0000_0002
+			fmt.Printf("0x%08x\n", dscr)
+		}
 
 		fmt.Println("\nSysCfg")
 		fmt.Println("------")
@@ -303,7 +374,7 @@ var spewCmd = &cobra.Command{
 			scfg.Debug(os.Stdout)
 		}
 
-		for _, p := range peripherals[app.desc.Kind] {
+		for _, p := range peripherals[app.Desc.Kind] {
 			fmt.Printf("\n%s\n", p.name)
 			fmt.Printf("%s\n", strings.Repeat("-", len(p.name)))
 			for _, reg := range p.registers {

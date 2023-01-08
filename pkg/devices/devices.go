@@ -39,31 +39,43 @@ func (k Kind) SoCCode() string {
 }
 
 func (k Kind) DFUVersion() dfu.ProtoVersion {
-	if k == Nano3 {
+	switch k {
+	case Nano3:
 		return dfu.ProtoVersion1
+	default:
+		return dfu.ProtoVersion2
 	}
-	return dfu.ProtoVersion2
+}
+
+func (k Kind) Description() Description {
+	for _, d := range Descriptions {
+		if d.Kind == k {
+			return d
+		}
+	}
+	panic("unreachable")
 }
 
 type Description struct {
-	DFUVID, DFUPID gousb.ID
-	Kind           Kind
+	VID, DFUPID, WTFPID gousb.ID
+	Kind                Kind
 }
 
 var Descriptions = []Description{
 	{
-		DFUVID: 0x05ac,
+		VID:    0x05ac,
 		DFUPID: 0x1223,
 		Kind:   Nano3,
 	},
 	{
-		DFUVID: 0x05ac,
+		VID:    0x05ac,
 		DFUPID: 0x1225,
 		Kind:   Nano4,
 	},
 	{
-		DFUVID: 0x05ac,
+		VID:    0x05ac,
 		DFUPID: 0x1231,
+		WTFPID: 0x1246,
 		Kind:   Nano5,
 	},
 }

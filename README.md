@@ -48,12 +48,19 @@ You can then use any DFU tool to upload any DFU image and the device should boot
     2022/01/06 00:06:56 Uploading wtf-test.dfu...
     2022/01/06 00:06:56 Image sent.
 
-Running iBugger / EmCORE / Rockbox
-----------------------------------
+Running U-Boot
+--------------
 
-Or, “what can I do with this”?
+An experimental U-Boot port is available at github.com/freemyipod/u-boot. After building it, you should be able to run:
 
-To be documented :)
+    $ ./wInd3x cfw run u-boot.bin
+
+A new ttyACM (CDC-ACM) serial console with appear, running the U-Boot debug console.
+
+Running Rockbox
+---------------
+
+No Rockbox port is available for the supported platform(s) ... yet.
 
 Haxed DFU Mode
 --------------

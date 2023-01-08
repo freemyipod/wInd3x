@@ -161,18 +161,20 @@ func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
 		}
 	}
 
+	clen := 0x400
+
 	buf := bytes.NewBuffer(i)
 	blockno := uint16(0)
 	for {
-		chunk := make([]byte, 0x400)
-		_, err := buf.Read(chunk)
+		chunk := make([]byte, clen)
+		n, err := buf.Read(chunk)
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			return fmt.Errorf("read failed: %w", err)
 		}
-		if err := SendChunk(usb, chunk, blockno); err != nil {
+		if err := SendChunk(usb, chunk[:n], blockno); err != nil {
 			return fmt.Errorf("chunk %d failed: %w", blockno, err)
 		}
 		status, err := GetStatus(usb)
@@ -185,7 +187,6 @@ func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
 		blockno += 1
 
 	}
-	blockno += 1
 
 	// Send zero-length download, completing image.
 	if err := SendChunk(usb, nil, blockno); err != nil {

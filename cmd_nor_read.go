@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
@@ -18,9 +19,9 @@ var norCmd = &cobra.Command{
 	Long:  "Manipulate SPI NOR Flash on the device. Currently this is EXPERIMENTAL, as the SPI NOR access methods are not well reverse engineered.",
 }
 
-func readNOR(app *app, w io.Writer, spino, offset, size uint32) error {
-	ep := app.ep
-	usb := app.usb
+func readNOR(app *app.App, w io.Writer, spino, offset, size uint32) error {
+	ep := app.Ep
+	usb := app.Usb
 
 	listing := ep.DisableICache()
 	payload, err := ep.NORInit(spino)
@@ -33,7 +34,7 @@ func readNOR(app *app, w io.Writer, spino, offset, size uint32) error {
 		Address: ep.ExecAddr(),
 		Listing: listing,
 	}
-	if err := dfu.Clean(app.usb); err != nil {
+	if err := dfu.Clean(app.Usb); err != nil {
 		return fmt.Errorf("clean failed: %w", err)
 	}
 
@@ -48,7 +49,7 @@ func readNOR(app *app, w io.Writer, spino, offset, size uint32) error {
 			Address: ep.ExecAddr(),
 			Listing: listing,
 		}
-		if err := dfu.Clean(app.usb); err != nil {
+		if err := dfu.Clean(app.Usb); err != nil {
 			return fmt.Errorf("clean failed: %w", err)
 		}
 
@@ -69,13 +70,13 @@ var norReadCmd = &cobra.Command{
 	Long:  "Read N bytes from an address from given SPI peripheral.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := newApp()
+		app, err := app.New()
 		if err != nil {
 			return err
 		}
-		defer app.close()
+		defer app.Close()
 
-		if app.ep.NORInit == nil {
+		if app.Ep.NORInit == nil {
 			return fmt.Errorf("currently only implemented for N3G")
 		}
 
