@@ -65,6 +65,7 @@ var Descriptions = []Description{
 	{
 		VID:    0x05ac,
 		DFUPID: 0x1223,
+		WTFPID: 0x1242,
 		Kind:   Nano3,
 	},
 	{

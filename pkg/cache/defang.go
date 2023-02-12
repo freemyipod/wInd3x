@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/freemyipod/wInd3x/pkg/cfw"
@@ -10,8 +11,42 @@ import (
 	"github.com/golang/glog"
 )
 
-var wtfDefangers = map[devices.Kind]cfw.VolumeVisitor{
-	devices.Nano5: cfw.MultipleVisitors([]cfw.VolumeVisitor{
+// defanger takes a decrypted WTF and returns it with security checks disabled.
+type defanger func(decrypted []byte) ([]byte, error)
+
+var wtfDefangers = map[devices.Kind]defanger{
+	devices.Nano3: func(decrypted []byte) ([]byte, error) {
+		res := make([]byte, len(decrypted))
+		copy(res, decrypted)
+
+		// Change USB device string.
+		source := []byte("iPod Recovery")
+		target := []byte("Defanged WTF!")
+		if len(source) != len(target) {
+			panic("invalid source/target length")
+		}
+
+		// Janky little wide char replace.
+		start := 0x800 + 0x770c
+		for i, b := range target {
+			addr := start + i*2
+			if want, got := source[i], res[addr]; want != got {
+				return nil, fmt.Errorf("source data mismatch at %x, wanted %v, got %v", addr, want, got)
+			}
+			res[addr] = b
+		}
+
+		// Disable sigchecking.
+		if res[0x800+0x19ac] != 0x33 {
+			panic("invalid patch offs")
+		}
+		res[0x800+0x19ac] = 0x00
+		res[0x800+0x19ad] = 0x30
+		res[0x800+0x19ae] = 0xa0
+		res[0x800+0x19af] = 0xe3
+		return res, nil
+	},
+	devices.Nano5: defangEFI(cfw.MultipleVisitors([]cfw.VolumeVisitor{
 		// Change USB vendor string in RestoreDFU.efi.
 		&cfw.VisitPE32InFile{
 			FileGUID: efi.MustParseGUID("a0517d80-37fa-4d06-bd0e-941d5698846a"),
@@ -41,7 +76,22 @@ var wtfDefangers = map[devices.Kind]cfw.VolumeVisitor{
 				},
 			}),
 		},
-	}),
+	})),
+}
+
+func defangEFI(visitor cfw.VolumeVisitor) defanger {
+	return func(decrypted []byte) ([]byte, error) {
+		img, err := image.Read(bytes.NewReader(decrypted))
+		if err != nil {
+			return nil, err
+		}
+
+		defanged, err := ApplyPatches(img, visitor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply patches: %w", err)
+		}
+		return defanged, nil
+	}
 }
 
 func ApplyPatches(img *image.IMG1, patches cfw.VolumeVisitor) ([]byte, error) {

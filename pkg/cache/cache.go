@@ -113,14 +113,9 @@ func getWTFDefanged(app *app.App) error {
 	if err != nil {
 		return err
 	}
-	img, err := image.Read(bytes.NewReader(decrypted))
+	defanged, err := defanger(decrypted)
 	if err != nil {
-		return err
-	}
-
-	defanged, err := ApplyPatches(img, defanger)
-	if err != nil {
-		return fmt.Errorf("failed to apply defanging patches: %w", err)
+		return fmt.Errorf("defanging failed: %w", err)
 	}
 
 	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDefanged)
