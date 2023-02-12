@@ -29,13 +29,15 @@ var makeDFUCmd = &cobra.Command{
 		var kind devices.Kind
 		switch strings.ToLower(makeDFUDeviceKind) {
 		case "":
-			return fmt.Errorf("--kind must be set (one of: n4g, n5g)")
+			return fmt.Errorf("--kind must be set (one of: n3g, n4g, n5g)")
+		case "n3g":
+			kind = devices.Nano3
 		case "n4g":
 			kind = devices.Nano4
 		case "n5g":
 			kind = devices.Nano5
 		default:
-			return fmt.Errorf("--kind must be one of: n4g, n5g")
+			return fmt.Errorf("--kind must be one of: n3g, n4g, n5g")
 		}
 
 		entrypoint, err := parseNumber(makeDFUEntrypoint)
