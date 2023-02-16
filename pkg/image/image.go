@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	FormatSignedEncrypted byte = 3
-	FormatSigned          byte = 4
+	FormatSignedEncrypted     byte = 1
+	FormatSigned              byte = 2
+	FormatX509SignedEncrypted byte = 3
+	FormatX509Signed          byte = 4
 )
 
 // IMG1Headers are also known as '8900' headers. More info:
@@ -45,9 +47,15 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 		body = append(body, pad...)
 	}
 
+	format := FormatX509Signed
+	sigLength := 0x80
+	certLength := 0x300
 	var version [3]byte
 	if dk == devices.Nano3 {
 		copy(version[:], []byte("1.0"))
+		format = FormatSigned
+		sigLength = 0
+		certLength = 0
 	} else {
 		copy(version[:], []byte("2.0"))
 	}
@@ -56,12 +64,12 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	hdr := &IMG1Header{
 		Magic:            magic,
 		Version:          version,
-		Format:           FormatSigned,
+		Format:           format,
 		Entrypoint:       entrypoint,
 		BodyLength:       uint32(len(body)),
-		DataLength:       uint32(len(body) + 0x80 + 0x300),
-		FooterCertOffset: uint32(len(body) + 0x80),
-		FooterCertLength: 0x300,
+		DataLength:       uint32(len(body) + sigLength + certLength),
+		FooterCertOffset: uint32(len(body) + sigLength),
+		FooterCertLength: uint32(certLength),
 	}
 	if err := binary.Write(buf, binary.LittleEndian, hdr); err != nil {
 		return nil, fmt.Errorf("could not serialize header: %w", err)
@@ -78,10 +86,10 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	buf.Write(body)
 
 	// Add unused signature.
-	buf.Write(bytes.Repeat([]byte{'S'}, 0x80))
+	buf.Write(bytes.Repeat([]byte{'S'}, sigLength))
 
 	// Add unused certificates.
-	buf.Write(bytes.Repeat([]byte{'C'}, 0x300))
+	buf.Write(bytes.Repeat([]byte{'C'}, certLength))
 
 	return buf.Bytes(), nil
 }
