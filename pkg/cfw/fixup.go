@@ -32,7 +32,18 @@ func SecoreOffset(fv *efi.Volume) (int, error) {
 // security core at origPos. This is currently done by modifying the padding
 // file, which is the second-to-last file within the firmware volume.
 func SecoreFixup(origPos int, fv *efi.Volume) error {
-	startPos, err := SecoreOffset(fv)
+	// Serialize and deserialize to get updated ReadOffsets and thus correct
+	// SecoreOffset.
+	data, err := fv.Serialize()
+	if err != nil {
+		return fmt.Errorf("when roundtrip-serializing: %w", err)
+	}
+	fv2, err := efi.ReadVolume(efi.NewNestedReader(data))
+	if err != nil {
+		return fmt.Errorf("when roundtrip-deserializing: %w", err)
+	}
+
+	startPos, err := SecoreOffset(fv2)
 	if err != nil {
 		return err
 	}
@@ -51,13 +62,23 @@ func SecoreFixup(origPos int, fv *efi.Volume) error {
 		if psize < reduce {
 			return fmt.Errorf("Padding too small: need %d, got %d bytes", reduce, psize)
 		}
-		psize += reduce
+		psize -= reduce
 	} else {
 		psize += needed
 	}
 	padding.Size = efi.ToUint24(uint32(psize) + 0x18)
 
-	endPos, err := SecoreOffset(fv)
+	// One more roundtrip to check. This code isn't great.
+	data, err = fv.Serialize()
+	if err != nil {
+		return fmt.Errorf("when check-serializing: %w", err)
+	}
+	fv3, err := efi.ReadVolume(efi.NewNestedReader(data))
+	if err != nil {
+		return fmt.Errorf("when check-deserializing: %w", err)
+	}
+
+	endPos, err := SecoreOffset(fv3)
 	if err != nil {
 		return err
 	}

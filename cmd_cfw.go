@@ -176,6 +176,9 @@ var cfwN3gTestCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to rebuild firmware: %w", err)
 		}
+		if want, got := len(img1.Body)-0x100, len(fvb); got > want {
+			return fmt.Errorf("generated volume larger than original (%x > %x)", got, want)
+		}
 		fvb = append(img1.Body[:0x100], fvb...)
 		imb, err := image.MakeUnsigned(img1.DeviceKind, img1.Header.Entrypoint, fvb)
 		if err != nil {
