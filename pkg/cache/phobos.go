@@ -46,7 +46,7 @@ func getJingle() (*jingle, error) {
 
 		os.MkdirAll(filepath.Dir(fspath), 0755)
 		if err := os.WriteFile(fspath, bytes, 0644); err != nil {
-			glog.Errorf("Could not save iTunes XML cache: %w", err)
+			glog.Errorf("Could not save iTunes XML cache: %v", err)
 		}
 	} else {
 		glog.Infof("Using iTunes XML cache at %s", fspath)

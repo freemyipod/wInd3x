@@ -12,7 +12,7 @@ func TestSample(t *testing.T) {
 		Listing: []Statement{
 			// Flush caches.
 			Mov{Dest: R0, Src: Immediate(0)},
-			Mcr{CPn: 15, Opc: 0, Src: R0, CRn: 7, CRm: 5, CP: 0},
+			Mcr{CPn: 15, Opc: 0, Src: R0, CRn: 7, CRm: 5, Opc2: 0},
 
 			// Load offset
 			Ldr{Dest: R0, Src: Constant(0x2202db00)},

@@ -76,10 +76,6 @@ var norReadCmd = &cobra.Command{
 		}
 		defer app.Close()
 
-		if app.Ep.NORInit == nil {
-			return fmt.Errorf("currently only implemented for N3G")
-		}
-
 		spino, err := parseNumber(args[0])
 		if err != nil {
 			return fmt.Errorf("invalid spi peripheral number")
