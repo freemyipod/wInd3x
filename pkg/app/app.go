@@ -14,11 +14,13 @@ import (
 type App struct {
 	ctx  *gousb.Context
 	Usb  *gousb.Device
+	done func()
 	Desc *devices.Description
 	Ep   exploit.Parameters
 }
 
 func (a *App) Close() {
+	a.done()
 	a.ctx.Close()
 }
 
@@ -61,9 +63,16 @@ func New() (*App, error) {
 			continue
 		}
 
+		_, done, err := usb.DefaultInterface()
+		if err != nil {
+			errs = multierror.Append(errs, err)
+			continue
+		}
+
 		return &App{
 			ctx:  ctx,
 			Usb:  usb,
+			done: done,
 			Desc: &deviceDesc,
 			Ep:   exploit.ParametersForKind[deviceDesc.Kind],
 		}, nil
@@ -83,6 +92,11 @@ func (a *App) WaitWTF(ctx context.Context) error {
 		if usb != nil {
 			a.Usb.Close()
 			a.Usb = usb
+			_, done, err := usb.DefaultInterface()
+			if err != nil {
+				return err
+			}
+			a.done = done
 			return nil
 		}
 
