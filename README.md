@@ -17,6 +17,15 @@ Supports a handful of devices previously supported by Pwnage 2.0, newly supports
 | Classic “6G” | **YES**       | **YES**      | Experimental, same ROM as Nano 3G |
 | iPod Touch   | never         | never        |                                   |
 
+Host OS support
+--------
+
+**Nano 4G and Nano 5G exploitation (haxdfu/cfw run/dump/decrypt/etc) works only on Linux due to the way the vulnerability is exploited on these platforms. Running it on Linux in a VM will not work.**
+
+Every other device and functionality should work on any operating system that wInd3x can be built on, but still only Linux is regularly tested and supported.
+
+As a workaround, please consider running wInd3x from a Raspberry Pi.
+
 Building
 --------
 
