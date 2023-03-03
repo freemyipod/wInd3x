@@ -29,7 +29,6 @@ func TestRepackAll(t *testing.T) {
 			t.Errorf("%s: could not get firmware: %v", kind, err)
 			continue
 		}
-		os.WriteFile(fmt.Sprintf("/tmp/%s in.bin", kind.String()), fw, 0600)
 
 		mse, err := Parse(bytes.NewReader(fw))
 		if err != nil {
