@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/adrg/xdg"
@@ -28,47 +29,80 @@ const (
 	PayloadKindWTFDecryptedCache PayloadKind = "wtf-decrypted-cache"
 	PayloadKindWTFDefanged       PayloadKind = "wtf-defanged"
 
+	PayloadKindRecoveryUpstream PayloadKind = "recovery-upstream"
+
+	PayloadKindFirmwareUpstream   PayloadKind = "firmware-upstream"
+	PayloadKindBootloaderUpstream PayloadKind = "bootloader-upstream"
+
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
 
-func getWTFUpstream(app *app.App) error {
-	wtfurl, err := WTFURL(app.Desc.Kind)
-	if err != nil {
-		return fmt.Errorf("could not get WTF url: %w", err)
+func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind) error {
+	var url string
+	var err error
+	switch pk {
+	case PayloadKindWTFUpstream:
+		url, err = RecoveryWTFURL(dk)
+	case PayloadKindRecoveryUpstream:
+		url, err = RecoveryFirmwareDFUURL(dk)
+	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
+		url, err = FirmwareURL(dk)
+	default:
+		err = fmt.Errorf("don't know how to get a %s", pk)
 	}
-	glog.Infof("Downloading WTF IPSW from %s...", wtfurl)
-	resp, err := http.Get(wtfurl)
 	if err != nil {
-		return fmt.Errorf("could not download WTF IPSW: %w", err)
+		return err
+	}
+
+	glog.Infof("Downloading %s IPSW from %s...", pk, url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("could not download IPSW: %w", err)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("could not download WTF IPSW: %w", err)
+		return fmt.Errorf("could not download IPSW: %w", err)
 	}
 	z, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
-		return fmt.Errorf("could not parse WTF IPSW: %w", err)
+		return fmt.Errorf("could not parse IPSW: %w", err)
 	}
 
-	want := fmt.Sprintf("firmware/dfu/wtf.x%s.release.dfu", app.Desc.DFUPID)
+	var want *regexp.Regexp
+	switch pk {
+	case PayloadKindWTFUpstream:
+		want = regexp.MustCompile(`^firmware/dfu/wtf.*release\.dfu$`)
+	case PayloadKindRecoveryUpstream:
+		want = regexp.MustCompile(`^firmware/dfu/firmware.*release\.dfu$`)
+	case PayloadKindFirmwareUpstream:
+		want = regexp.MustCompile(`^firmware.*$`)
+	case PayloadKindBootloaderUpstream:
+		want = regexp.MustCompile(`^n.*\.bootloader.*\.rb3$`)
+	default:
+		return fmt.Errorf("don't know file path for %s", pk)
+	}
+	var fname string
 	for _, f := range z.File {
-		if strings.ToLower(f.Name) == want {
-			want = f.Name
+		if want.MatchString(strings.ToLower(f.Name)) {
+			fname = f.Name
 		}
 	}
-	f, err := z.Open(want)
+	if fname == "" {
+		return fmt.Errorf("expected file not found in IPSW")
+	}
+	f, err := z.Open(fname)
 	if err != nil {
-		return fmt.Errorf("could not open %q in IPSW: %w", want, err)
+		return fmt.Errorf("could not open %q in IPSW: %w", fname, err)
 	}
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		return fmt.Errorf("could not read %q from IPSW: %w", want, err)
+		return fmt.Errorf("could not read %q from IPSW: %w", fname, err)
 	}
 
-	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFUpstream)
+	fspath := pathFor(&dk, pk)
 	os.MkdirAll(filepath.Dir(fspath), 0755)
 	if err := os.WriteFile(fspath, data, 0644); err != nil {
-		return fmt.Errorf("could not write WTF: %w", err)
+		return fmt.Errorf("could not write: %w", err)
 	}
 	return nil
 }
@@ -135,8 +169,8 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 
 	var err error
 	switch payload {
-	case PayloadKindWTFUpstream:
-		err = getWTFUpstream(app)
+	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
+		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)
 	case PayloadKindWTFDefanged:

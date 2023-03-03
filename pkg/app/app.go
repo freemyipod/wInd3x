@@ -12,15 +12,23 @@ import (
 )
 
 type App struct {
-	ctx  *gousb.Context
-	Usb  *gousb.Device
-	done func()
-	Desc *devices.Description
-	Ep   exploit.Parameters
+	ctx           *gousb.Context
+	Usb           *gousb.Device
+	InterfaceKind devices.InterfaceKind
+	done          func()
+	Desc          *devices.Description
+	Ep            exploit.Parameters
+
+	MSEndpoints struct {
+		In  *gousb.InEndpoint
+		Out *gousb.OutEndpoint
+	}
 }
 
 func (a *App) Close() {
-	a.done()
+	if a.done != nil {
+		a.done()
+	}
 	a.ctx.Close()
 }
 
@@ -46,6 +54,7 @@ func newContext() (*gousb.Context, error) {
 	}
 }
 
+// TODO: rename to NewDFU.
 func New() (*App, error) {
 	ctx, err := newContext()
 	if err != nil {
@@ -54,7 +63,7 @@ func New() (*App, error) {
 
 	var errs error
 	for _, deviceDesc := range devices.Descriptions {
-		usb, err := ctx.OpenDeviceWithVIDPID(deviceDesc.VID, deviceDesc.DFUPID)
+		usb, err := ctx.OpenDeviceWithVIDPID(deviceDesc.VID, deviceDesc.PIDs[devices.DFU])
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -63,19 +72,14 @@ func New() (*App, error) {
 			continue
 		}
 
-		_, done, err := usb.DefaultInterface()
-		if err != nil {
-			errs = multierror.Append(errs, err)
-			continue
+		app := &App{
+			ctx:           ctx,
+			Usb:           usb,
+			InterfaceKind: devices.DFU,
+			Desc:          &deviceDesc,
+			Ep:            exploit.ParametersForKind[deviceDesc.Kind],
 		}
-
-		return &App{
-			ctx:  ctx,
-			Usb:  usb,
-			done: done,
-			Desc: &deviceDesc,
-			Ep:   exploit.ParametersForKind[deviceDesc.Kind],
-		}, nil
+		return app, app.prepareUSB()
 	}
 	if errs == nil {
 		return nil, fmt.Errorf("no device found")
@@ -83,21 +87,99 @@ func New() (*App, error) {
 	return nil, errs
 }
 
-func (a *App) WaitWTF(ctx context.Context) error {
+func NewAny() (*App, error) {
+	ctx, err := newContext()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize USB: %w", err)
+	}
+
+	var errs error
+	for _, deviceDesc := range devices.Descriptions {
+		for _, ik := range []devices.InterfaceKind{devices.DFU, devices.WTF, devices.Disk} {
+			usb, err := ctx.OpenDeviceWithVIDPID(deviceDesc.VID, deviceDesc.PIDs[ik])
+			if err != nil {
+				errs = multierror.Append(errs, err)
+			}
+
+			if usb == nil {
+				continue
+			}
+
+			app := &App{
+				ctx:           ctx,
+				Usb:           usb,
+				InterfaceKind: ik,
+				Desc:          &deviceDesc,
+				Ep:            exploit.ParametersForKind[deviceDesc.Kind],
+			}
+			return app, app.prepareUSB()
+		}
+	}
+	if errs == nil {
+		return nil, fmt.Errorf("no device found")
+	}
+	return nil, errs
+}
+
+func (a *App) prepareUSB() error {
+	if a.done != nil {
+		a.done()
+	}
+	a.done = nil
+	switch a.InterfaceKind {
+	case devices.DFU, devices.WTF:
+		if err := a.Usb.SetAutoDetach(true); err != nil {
+			return err
+		}
+		_, done, err := a.Usb.DefaultInterface()
+		if err != nil {
+			return err
+		}
+		a.done = done
+	case devices.Disk:
+		if err := a.Usb.SetAutoDetach(true); err != nil {
+			return err
+		}
+		cfgNum, err := a.Usb.ActiveConfigNum()
+		if err != nil {
+			return err
+		}
+		cfg, err := a.Usb.Config(cfgNum)
+		if err != nil {
+			return err
+		}
+		i, err := cfg.Interface(0, 0)
+		if err != nil {
+			return err
+		}
+		eps := a.Usb.Desc.Configs[cfg.Desc.Number].Interfaces[0].AltSettings[0].Endpoints
+		for _, ep := range eps {
+			var err error
+			switch ep.Direction {
+			case gousb.EndpointDirectionIn:
+				a.MSEndpoints.In, err = i.InEndpoint(ep.Number)
+			case gousb.EndpointDirectionOut:
+				a.MSEndpoints.Out, err = i.OutEndpoint(ep.Number)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (a *App) WaitSwitch(ctx context.Context, ik devices.InterfaceKind) error {
 	for {
-		usb, err := a.ctx.OpenDeviceWithVIDPID(a.Desc.VID, a.Desc.WTFPID)
+		usb, err := a.ctx.OpenDeviceWithVIDPID(a.Desc.VID, a.Desc.PIDs[ik])
 		if err != nil {
 			return err
 		}
 		if usb != nil {
 			a.Usb.Close()
+			a.InterfaceKind = ik
 			a.Usb = usb
-			_, done, err := usb.DefaultInterface()
-			if err != nil {
-				return err
-			}
-			a.done = done
-			return nil
+			return a.prepareUSB()
 		}
 
 		select {
@@ -106,4 +188,9 @@ func (a *App) WaitWTF(ctx context.Context) error {
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// TODO: remove
+func (a *App) WaitWTF(ctx context.Context) error {
+	return a.WaitSwitch(ctx, devices.DFU)
 }

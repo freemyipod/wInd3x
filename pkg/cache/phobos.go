@@ -15,14 +15,25 @@ import (
 
 type jingle struct {
 	MobileDeviceSoftware map[string]mobileDeviceSoftwareVersion `plist:"MobileDeviceSoftwareVersionsByVersion"`
+	IPodSoftwareVersions map[string]iPodSoftwareVersion         `plist:"iPodSoftwareVersions"`
 }
 
 type mobileDeviceSoftwareVersion struct {
-	RecoverySoftware map[string]map[string]recoverySoftware `plist:"RecoverySoftwareVersions"`
+	RecoverySoftware struct {
+		WTF      map[string]recoverySoftware `plist:"WTF"`
+		Firmware struct {
+			DFU map[string]recoverySoftware `plist:"DFU"`
+		} `plist:"Firmware"`
+	} `plist:"RecoverySoftwareVersions"`
 }
 
 type recoverySoftware struct {
 	FirmwareURL string
+}
+
+type iPodSoftwareVersion struct {
+	UpdaterFamilyID int    `plist:"UpdaterFamilyID"`
+	FirmwareURL     string `plist:"FirmwareURL"`
 }
 
 const jingleURL = "http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version"
@@ -59,25 +70,51 @@ func getJingle() (*jingle, error) {
 	return &res, nil
 }
 
-func WTFURL(dev devices.Kind) (string, error) {
+func RecoveryFirmwareDFUURL(dev devices.Kind) (string, error) {
 	j, err := getJingle()
 	if err != nil {
 		return "", err
 	}
 
-	pidext := int(dev.Description().DFUPID) << 16
+	pidext := int(dev.Description().Kind.Description().PIDs[devices.WTF]) << 16
 	k2 := fmt.Sprintf("%d", pidext)
 
 	for _, v := range j.MobileDeviceSoftware {
-		if _, ok := v.RecoverySoftware["WTF"]; !ok {
-			continue
+		if rs, ok := v.RecoverySoftware.Firmware.DFU[k2]; ok {
+			return rs.FirmwareURL, nil
 		}
-		if _, ok := v.RecoverySoftware["WTF"][k2]; !ok {
-			continue
-		}
-		rs := v.RecoverySoftware["WTF"][k2]
-		return rs.FirmwareURL, nil
+	}
+	return "", fmt.Errorf("not found")
+}
+
+func RecoveryWTFURL(dev devices.Kind) (string, error) {
+	j, err := getJingle()
+	if err != nil {
+		return "", err
 	}
 
+	pidext := int(dev.Description().PIDs[devices.DFU]) << 16
+	k2 := fmt.Sprintf("%d", pidext)
+
+	for _, v := range j.MobileDeviceSoftware {
+		if rs, ok := v.RecoverySoftware.WTF[k2]; ok {
+			return rs.FirmwareURL, nil
+		}
+	}
+	return "", fmt.Errorf("not found")
+}
+
+func FirmwareURL(dev devices.Kind) (string, error) {
+	j, err := getJingle()
+	if err != nil {
+		return "", err
+	}
+
+	for _, isv := range j.IPodSoftwareVersions {
+		if isv.UpdaterFamilyID != dev.Description().UpdaterFamilyID {
+			continue
+		}
+		return isv.FirmwareURL, nil
+	}
 	return "", fmt.Errorf("not found")
 }

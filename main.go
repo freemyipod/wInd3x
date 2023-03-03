@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/gousb"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -29,6 +28,7 @@ func main() {
 	makeDFUCmd.Flags().StringVarP(&makeDFUEntrypoint, "entrypoint", "e", "0x0", "Entrypoint offset for image (added to load address == 0x2200_0000)")
 	makeDFUCmd.Flags().StringVarP(&makeDFUDeviceKind, "kind", "k", "", "Device kind (one of 'n4g', 'n5g')")
 	decryptCmd.Flags().StringVarP(&decryptRecovery, "recovery", "r", "", "EXPERIMENTAL: Path to temporary file used for recovery when restarting the transfer")
+	restoreCmd.Flags().BoolVarP(&restoreFull, "full", "f", false, "Perform full restore, including repartition and bootloader install. If true, you will have to manually reformat the main partition as FAT32, otherwise the device will seem bricked.")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(haxDFUCmd)
 	rootCmd.AddCommand(runCmd)
@@ -43,6 +43,7 @@ func main() {
 	cfwCmd.AddCommand(cfwN3gTestCmd)
 	cfwCmd.AddCommand(cfwRunCmd)
 	rootCmd.AddCommand(cfwCmd)
+	rootCmd.AddCommand(restoreCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -52,28 +53,6 @@ func main() {
 func init() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	flag.Set("logtostderr", "true")
-}
-
-func newContext() (*gousb.Context, error) {
-	resC := make(chan *gousb.Context)
-	errC := make(chan error)
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				errC <- fmt.Errorf("%v", r)
-			}
-		}()
-
-		resC <- gousb.NewContext()
-	}()
-
-	select {
-	case err := <-errC:
-		return nil, err
-	case res := <-resC:
-		return res, nil
-	}
 }
 
 func parseNumber(s string) (uint32, error) {
