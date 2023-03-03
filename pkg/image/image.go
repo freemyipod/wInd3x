@@ -110,7 +110,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 	var kind devices.Kind
-	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5} {
+	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7} {
 		if bytes.Equal(hdr.Magic[:], []byte(k.SoCCode())) {
 			kind = k
 			break
@@ -130,14 +130,15 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
-	if kind == devices.Nano3 {
-		if _, err := r.Seek(0x800, io.SeekStart); err != nil {
-			return nil, fmt.Errorf("could not seek past header")
-		}
-	} else {
-		if _, err := r.Seek(0x600, io.SeekStart); err != nil {
-			return nil, fmt.Errorf("could not seek past header")
-		}
+	hdrSize := int64(0x600)
+	switch kind {
+	case devices.Nano3:
+		hdrSize = 0x800
+	case devices.Nano7:
+		hdrSize = 0x400
+	}
+	if _, err := r.Seek(hdrSize, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("could not seek past header")
 	}
 
 	glog.Infof("Parsed %s image.", kind)
