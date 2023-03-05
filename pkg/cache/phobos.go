@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/golang/glog"
 	"howett.net/plist"
@@ -38,8 +39,31 @@ type iPodSoftwareVersion struct {
 
 const jingleURL = "http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version"
 
+var (
+	extraFirmwareVersions = map[devices.Kind]map[string]string{
+		// Nano 6G
+		devices.Nano6: {
+			"iPod_1.0": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-9054.20100907.VKPt5/iPod_1.0_36A00403.ipsw",
+		},
+	}
+)
+
+func GetFirmwareVersions(dk devices.Kind) []string {
+	var res []string
+	if extra, ok := extraFirmwareVersions[dk]; ok {
+		for k, _ := range extra {
+			res = append(res, k)
+		}
+	}
+	sort.Strings(res)
+	res = append(res, "current")
+	return res
+}
+
+var FirmwareVersionOverrides map[devices.Kind]string
+
 func getJingle() (*jingle, error) {
-	fspath := pathFor(nil, PayloadKindJingleXML)
+	fspath := pathFor(nil, PayloadKindJingleXML, "")
 	var bytes []byte
 	if _, err := os.Stat(fspath); err == nil {
 		bytes, _ = os.ReadFile(fspath)
@@ -105,6 +129,17 @@ func RecoveryWTFURL(dev devices.Kind) (string, error) {
 }
 
 func FirmwareURL(dev devices.Kind) (string, error) {
+	if version, ok := FirmwareVersionOverrides[dev]; ok {
+		if version != "current" {
+			if extra, ok := extraFirmwareVersions[dev]; ok {
+				if url, ok := extra[version]; ok {
+					return url, nil
+				}
+			}
+			return "", fmt.Errorf("firmware IPSW override specified, but invalid")
+		}
+	}
+
 	j, err := getJingle()
 	if err != nil {
 		return "", err
@@ -117,4 +152,17 @@ func FirmwareURL(dev devices.Kind) (string, error) {
 		return isv.FirmwareURL, nil
 	}
 	return "", fmt.Errorf("not found")
+}
+
+func urlForKind(pk PayloadKind, dk devices.Kind) (string, error) {
+	switch pk {
+	case PayloadKindWTFUpstream:
+		return RecoveryWTFURL(dk)
+	case PayloadKindRecoveryUpstream:
+		return RecoveryFirmwareDFUURL(dk)
+	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
+		return FirmwareURL(dk)
+	default:
+		return "", nil
+	}
 }

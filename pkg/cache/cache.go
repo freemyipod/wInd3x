@@ -3,6 +3,8 @@ package cache
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -37,23 +39,7 @@ const (
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
 
-func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind) error {
-	var url string
-	var err error
-	switch pk {
-	case PayloadKindWTFUpstream:
-		url, err = RecoveryWTFURL(dk)
-	case PayloadKindRecoveryUpstream:
-		url, err = RecoveryFirmwareDFUURL(dk)
-	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
-		url, err = FirmwareURL(dk)
-	default:
-		err = fmt.Errorf("don't know how to get a %s", pk)
-	}
-	if err != nil {
-		return err
-	}
-
+func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error {
 	glog.Infof("Downloading %s IPSW from %s...", pk, url)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -99,7 +85,7 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind) error {
 		return fmt.Errorf("could not read %q from IPSW: %w", fname, err)
 	}
 
-	fspath := pathFor(&dk, pk)
+	fspath := pathFor(&dk, pk, url)
 	os.MkdirAll(filepath.Dir(fspath), 0755)
 	if err := os.WriteFile(fspath, data, 0644); err != nil {
 		return fmt.Errorf("could not write: %w", err)
@@ -117,7 +103,7 @@ func getWTFDecrypted(app *app.App) error {
 		return fmt.Errorf("could not parse WTF IMG1: %w", err)
 	}
 
-	recovery := pathFor(&app.Desc.Kind, PayloadKindWTFDecryptedCache)
+	recovery := pathFor(&app.Desc.Kind, PayloadKindWTFDecryptedCache, "")
 	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
 	if err != nil {
 		return fmt.Errorf("could not decrypt WTF: %w", err)
@@ -128,7 +114,7 @@ func getWTFDecrypted(app *app.App) error {
 		return fmt.Errorf("could not re-pack decrypted WTF: %w", err)
 	}
 
-	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDecrypted)
+	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDecrypted, "")
 	os.MkdirAll(filepath.Dir(fspath), 0755)
 	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
 		return fmt.Errorf("could not write WTF: %w", err)
@@ -152,7 +138,7 @@ func getWTFDefanged(app *app.App) error {
 		return fmt.Errorf("defanging failed: %w", err)
 	}
 
-	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDefanged)
+	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDefanged, "")
 	os.MkdirAll(filepath.Dir(fspath), 0755)
 	if err := os.WriteFile(fspath, defanged, 0644); err != nil {
 		return fmt.Errorf("could not write WTF: %w", err)
@@ -161,16 +147,20 @@ func getWTFDefanged(app *app.App) error {
 }
 
 func Get(app *app.App, payload PayloadKind) ([]byte, error) {
-	fspath := pathFor(&app.Desc.Kind, payload)
+	url, err := urlForKind(payload, app.Desc.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	fspath := pathFor(&app.Desc.Kind, payload, url)
 	if _, err := os.Stat(fspath); err == nil {
 		glog.Infof("Using %s %s at %s", app.Desc.Kind, payload, fspath)
 		return os.ReadFile(fspath)
 	}
 
-	var err error
 	switch payload {
 	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
-		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind)
+		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)
 	case PayloadKindWTFDefanged:
@@ -185,15 +175,21 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 	return os.ReadFile(fspath)
 }
 
-func pathFor(dev *devices.Kind, payload PayloadKind) string {
+func pathFor(dev *devices.Kind, payload PayloadKind, upstreamURL string) string {
 	devpart := "any"
 	if dev != nil {
 		devpart = string(*dev)
 	}
+	marker := ""
+	if upstreamURL != "" {
+		s := sha256.New()
+		fmt.Fprintf(s, "%s", upstreamURL)
+		marker = "-" + hex.EncodeToString(s.Sum(nil))
+	}
 	parts := []string{
 		xdg.DataHome,
 		"wInd3x",
-		fmt.Sprintf("%s-%s.bin", devpart, payload),
+		fmt.Sprintf("%s-%s%s.bin", devpart, payload, marker),
 	}
 	return path.Join(parts...)
 }

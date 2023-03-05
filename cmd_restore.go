@@ -18,6 +18,7 @@ import (
 )
 
 var restoreFull bool
+var restoreVersion string
 
 var restoreCmd = &cobra.Command{
 	Use:   "restore",
@@ -36,6 +37,21 @@ var restoreCmd = &cobra.Command{
 		switch app.Desc.Kind {
 		case devices.Nano3:
 			hasBootloader = false
+		}
+
+		switch restoreVersion {
+		case "list":
+			versions := cache.GetFirmwareVersions(app.Desc.Kind)
+			glog.Infof("Available versions for %s:", app.Desc.Kind)
+			for _, version := range versions {
+				glog.Infof("- %s", version)
+			}
+			return nil
+		case "", "current":
+		default:
+			cache.FirmwareVersionOverrides = map[devices.Kind]string{
+				app.Desc.Kind: restoreVersion,
+			}
 		}
 
 		firmware, err := cache.Get(app, cache.PayloadKindFirmwareUpstream)
