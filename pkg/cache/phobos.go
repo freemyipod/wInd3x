@@ -41,9 +41,19 @@ const jingleURL = "http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.w
 
 var (
 	extraFirmwareVersions = map[devices.Kind]map[string]string{
-		// Nano 6G
+		devices.Nano3: {
+			"1.0.1": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-3878.20070914.P0omB/iPod_26.1.0.1.ipsw",
+			"1.0.2": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-3930.20071005.94rVg/iPod_26.1.0.2.ipsw",
+			"1.0.3": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-3941.20071115.Hngr4/iPod_26.1.0.3.ipsw",
+			"1.1":   "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-4011.20080115.Gh5yt/iPod_26.1.1.ipsw",
+			"1.1.2": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-4276.20080430.Gbjt5/iPod_26.1.1.2.ipsw",
+			"1.1.3": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-5164.20080722.hnt3A/iPod_26.1.1.3.ipsw",
+		},
+		devices.Nano5: {
+			"1.0.1": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-7165.20090909.AzPKm/iPod_1.0.1_34A10006.ipsw",
+		},
 		devices.Nano6: {
-			"iPod_1.0": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-9054.20100907.VKPt5/iPod_1.0_36A00403.ipsw",
+			"1.0": "http://appldnld.apple.com/iPod/SBML/osx/bundles/061-9054.20100907.VKPt5/iPod_1.0_36A00403.ipsw",
 		},
 	}
 )
