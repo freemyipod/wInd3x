@@ -128,9 +128,6 @@ func (a *App) prepareUSB() error {
 	a.done = nil
 	switch a.InterfaceKind {
 	case devices.DFU, devices.WTF:
-		if err := a.Usb.SetAutoDetach(true); err != nil {
-			return err
-		}
 		_, done, err := a.Usb.DefaultInterface()
 		if err != nil {
 			return err
@@ -192,5 +189,5 @@ func (a *App) WaitSwitch(ctx context.Context, ik devices.InterfaceKind) error {
 
 // TODO: remove
 func (a *App) WaitWTF(ctx context.Context) error {
-	return a.WaitSwitch(ctx, devices.DFU)
+	return a.WaitSwitch(ctx, devices.WTF)
 }
