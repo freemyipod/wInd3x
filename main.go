@@ -30,6 +30,7 @@ func main() {
 	decryptCmd.Flags().StringVarP(&decryptRecovery, "recovery", "r", "", "EXPERIMENTAL: Path to temporary file used for recovery when restarting the transfer")
 	restoreCmd.Flags().BoolVarP(&restoreFull, "full", "f", false, "Perform full restore, including repartition and bootloader install. If true, you will have to manually reformat the main partition as FAT32, otherwise the device will seem bricked.")
 	restoreCmd.Flags().StringVarP(&restoreVersion, "version", "V", "current", "Restore to some older version instead of 'current' from Apple. Use 'list' to show available.")
+	mseExtractCmd.Flags().StringVarP(&extractDir, "out", "o", "", "Directory to extract to (default: current working directory)")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(haxDFUCmd)
 	rootCmd.AddCommand(runCmd)
@@ -45,6 +46,8 @@ func main() {
 	cfwCmd.AddCommand(cfwRunCmd)
 	rootCmd.AddCommand(cfwCmd)
 	rootCmd.AddCommand(restoreCmd)
+	mseCmd.AddCommand(mseExtractCmd)
+	rootCmd.AddCommand(mseCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}
