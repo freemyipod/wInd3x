@@ -19,7 +19,7 @@ var mseCmd = &cobra.Command{
 }
 
 var mseExtractCmd = &cobra.Command{
-	Use:   "extract",
+	Use:   "extract [Firmware.mse]",
 	Short: "Extract an .mse firmware flie into images",
 	Long:  "Split an .mse file into individual images like osos, disk, etc.",
 	Args:  cobra.ExactArgs(1),
