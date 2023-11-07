@@ -37,6 +37,7 @@ func main() {
 	rootCmd.AddCommand(makeDFUCmd)
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(decryptCmd)
+	rootCmd.AddCommand(encryptSHA1Cmd)
 	nandCmd.AddCommand(nandReadCmd)
 	rootCmd.AddCommand(nandCmd)
 	norCmd.AddCommand(norReadCmd)
