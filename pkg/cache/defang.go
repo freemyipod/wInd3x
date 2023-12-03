@@ -15,6 +15,11 @@ import (
 type defanger func(decrypted []byte) ([]byte, error)
 
 var wtfDefangers = map[devices.Kind]defanger{
+	devices.Nano3: defangRaw(map[int][]byte{
+		// replace bytes at addresses in the WTF binary:
+		0x1990: []byte{0x00, 0x70, 0xA0, 0xE3, 0x22, 0x00, 0x00, 0xEA}, // skip signature check
+		0x770C: []byte("D\x00e\x00f\x00a\x00n\x00g\x00e\x00d\x00 \x00W\x00T\x00F\x00!\x00"), // change USB product string to show it's defanged
+	}),
 	devices.Nano5: defangEFI(cfw.MultipleVisitors([]cfw.VolumeVisitor{
 		// Change USB vendor string in RestoreDFU.efi.
 		&cfw.VisitPE32InFile{
@@ -99,4 +104,27 @@ func ApplyPatches(img *image.IMG1, patches cfw.VolumeVisitor) ([]byte, error) {
 	}
 
 	return imb, nil
+}
+
+func defangRaw(patches map[int][]byte) defanger {
+	return func(decrypted []byte) ([]byte, error) {
+		img, err := image.Read(bytes.NewReader(decrypted))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read image: %w", err)
+		}
+
+		for offset, patch := range patches {
+			if len(img.Body) < offset+len(patch) {
+				return nil, fmt.Errorf("patch at offset %x is too large", offset)
+			}
+			copy(img.Body[offset:], patch)
+		}
+
+		defanged, err := image.MakeUnsigned(img.DeviceKind, img.Header.Entrypoint, img.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build new image1: %w", err)
+		}
+
+		return defanged, nil
+	}
 }
