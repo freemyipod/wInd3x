@@ -176,6 +176,14 @@ func (h *Host) IPodFinalize(reset bool) error {
 
 	if reset {
 		cbd = &CommandDataBuffer{
+			OperationCode: 0x1e,
+			Request: []byte{0, 0, 0, 0},
+		}
+		if err := h.RawCommand(cbd); err != nil {
+			return err
+		}
+
+		cbd = &CommandDataBuffer{
 			OperationCode: 0x1b,
 			Request:       []byte{0, 0, 0, 2},
 		}
