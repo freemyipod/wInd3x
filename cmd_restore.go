@@ -34,9 +34,11 @@ var restoreCmd = &cobra.Command{
 		defer app.Close()
 
 		hasBootloader := true
+		shouldParseMSE := true
 		switch app.Desc.Kind {
 		case devices.Nano3:
 			hasBootloader = false
+			shouldParseMSE = false
 		}
 
 		switch restoreVersion {
@@ -58,13 +60,16 @@ var restoreCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("could not get firmware: %w", err)
 		}
-		m, err := mse.Parse(bytes.NewReader(firmware))
-		if err != nil {
-			return fmt.Errorf("could not parse firmware: %w", err)
-		}
-		firmware, err = m.Serialize()
-		if err != nil {
-			return fmt.Errorf("could not serialize modified firmware: %w", err)
+
+		if shouldParseMSE {
+			m, err := mse.Parse(bytes.NewReader(firmware))
+			if err != nil {
+				return fmt.Errorf("could not parse firmware: %w", err)
+			}
+			firmware, err = m.Serialize()
+			if err != nil {
+				return fmt.Errorf("could not serialize modified firmware: %w", err)
+			}
 		}
 
 		var bootloader []byte
