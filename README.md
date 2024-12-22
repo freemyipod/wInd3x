@@ -13,7 +13,7 @@ Implements 'wInd3x' exploit (described below) and [s5late](https://github.com/m-
 | Nano 4G      | **YES**       | **YES**      | soon         | wInd3x            |              |
 | Nano 5G      | **YES**       | **YES**      | **YES**      | wInd3x            |              |
 | Nano 6G      | soon          | soon         | soon         |                   |              |
-| Nano 7G      | soon          | **YES**      | soon         | s5late -> wInd3x  |              |
+| Nano 7G      | **YES**       | **YES**      | soon         | s5late -> wInd3x  |              |
 | Classic “6G” | **YES**       | **YES**      | soon         | wInd3x            | Experimental |
 | iPod Touch   | never         | never        | never        |                   |              |
 
