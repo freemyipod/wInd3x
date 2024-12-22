@@ -163,6 +163,12 @@ func (a *App) prepareUSB() error {
 			}
 		}
 	}
+
+	if a.InterfaceKind == devices.DFU {
+		if err := a.Ep.Prepare(a.Usb); err != nil {
+			return fmt.Errorf("failed to prepare exploit: %w", err)
+		}
+	}
 	return nil
 }
 
