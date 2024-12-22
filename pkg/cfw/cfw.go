@@ -28,8 +28,15 @@ func visitSection(s efi.Section, vi VolumeVisitor) error {
 		return err
 	}
 	for _, sub := range s.Sub() {
-		if err := visitSection(sub, vi); err != nil {
-			return err
+		if f := sub.File; f != nil {
+			if err := vi.VisitFile(f); err != nil {
+				return err
+			}
+		}
+		if s := sub.Section; s != nil {
+			if err := visitSection(s, vi); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -116,7 +123,7 @@ func (v *VisitPE32InFile) VisitSection(section efi.Section) error {
 
 func (v *VisitPE32InFile) Done() error {
 	if !v.applied {
-		return fmt.Errorf("guid not found")
+		return fmt.Errorf("guid %s not found", v.FileGUID.String())
 	}
 	return nil
 }

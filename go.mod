@@ -10,6 +10,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tetratelabs/wazero v1.0.0-pre.1
+	github.com/ulikunitz/xz v0.5.12
 	howett.net/plist v1.0.0
 )
 

@@ -3,6 +3,7 @@ package efi
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 
@@ -26,7 +27,9 @@ type FirmwareVolumeHeader struct {
 }
 
 func (h *FirmwareVolumeHeader) check() error {
-	if h.GUID.String() != "7a9354d9-0468-444a-81ce-0bf617d890df" {
+	ffs1 := "7a9354d9-0468-444a-81ce-0bf617d890df"
+	ffs2 := "8c8ce578-8a3d-4f1c-9935-896185c32dd3"
+	if h.GUID.String() != ffs1 && h.GUID.String() != ffs2 {
 		return fmt.Errorf("unknown GUID (%s)", h.GUID.String())
 	}
 	if !bytes.Equal(h.Signature[:], []byte("_FVH")) {
@@ -44,7 +47,8 @@ type Volume struct {
 	FirmwareVolumeHeader
 	Files []*FirmwareFile
 	// Custom is trailing data at the end of the Volume.
-	Custom []byte
+	Custom  []byte
+	MinSize int
 }
 
 type blockmap struct {
@@ -93,78 +97,66 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	dataSize := bmap[0].BlockCount * bmap[0].BlockSize
 	// This doesn't make sense, but otherwise that section is just too large. I
 	// think it's an implementation bug in the iPod firmware.
-	dataSize -= 0x28 + 0x20
+	//dataSize -= 0x28 + 0x20
+	//dataSize = 144928 - 0x50
 
-	dataSub := r.Sub(0, int(dataSize))
-	r.Advance(int(dataSize))
+	glog.V(1).Infof(" reader size: %x", r.Len()+r.pos)
+	glog.V(1).Infof(" block count size: %x", dataSize)
+	restSize := (r.Len() + r.pos) - int(dataSize)
+	glog.V(1).Infof(" rest size: %x", restSize)
+
+	//dataSub := r
 
 	glog.V(1).Infof("Data size: %d bytes", dataSize)
 
 	// Currently always 928 bytes of trailing data. That's the signature / cert
 	// chain. We should also be able to recover this size from the IMG1 header.
-	rest, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("reading rest failed: %v", err)
-	}
 	//if len(rest) != 928 {
 	//	return nil, fmt.Errorf("trailing data of %d bytes", len(rest))
 	//}
 
 	var files []*FirmwareFile
-	for dataSub.Len() != 0 {
-		file, err := readFile(dataSub)
+	for r.Len() != 0 {
+		file, err := readFile(r)
 		if err != nil {
 			return nil, fmt.Errorf("reading file %d failed: %v", len(files), err)
+		}
+		if file == nil {
+			break
 		}
 		files = append(files, file)
 	}
 	glog.V(1).Infof("%d files", len(files))
 
+	paddingLen := r.Len() - restSize
+	glog.Infof("padding len: 0x%x", paddingLen)
+	padding := make([]byte, paddingLen)
+	r.Read(padding)
+	if !bytes.Equal(padding, bytes.Repeat([]byte{0xff}, paddingLen)) {
+		return nil, fmt.Errorf("padding is not all 0xFF")
+	}
+
+	rest, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading rest failed: %v", err)
+	}
+	glog.Infof("rest len: 0x%x", len(rest))
+	glog.Infof("rest:\n%s", hex.Dump(rest))
+
 	return &Volume{
 		FirmwareVolumeHeader: header,
 		Files:                files,
 		Custom:               rest,
+		MinSize:              int(dataSize),
 	}, nil
 }
 
 func (v *Volume) Serialize() ([]byte, error) {
-	// Find all padding files, pick last one to stretch image.
-	havePadding := false
-	paddingFileNumber := 0
-	for i, f := range v.Files {
-		if f.FileType != FileTypePadding {
-			continue
-		}
-		havePadding = true
-		paddingFileNumber = i
-	}
-	// No padding file? Create our own.
-	if !havePadding {
-		panic("unimplemented")
-		v.Files = append(v.Files, &FirmwareFile{
-			FirmwareFileHeader: FirmwareFileHeader{
-				//GUID:       uuid.UUID4(),
-				ChecksumHeader: 0,
-				ChecksumData:   0,
-				FileType:       FileTypePadding,
-				Attributes:     0x40,
-				Size:           ToUint24(0),
-				State:          0xf8,
-			},
-		})
-		paddingFileNumber = len(v.Files) - 1
-	}
-
 	// First, serialize all files apart from used padding file so that we know
 	// how much data we're dealing with here.
 	filesSize := 0
 	fileData := make(map[int][]byte)
 	for i, f := range v.Files {
-		_ = paddingFileNumber
-		//if i == paddingFileNumber {
-		//	filesSize += 24
-		//	continue
-		//}
 		data, err := f.Serialize()
 		if err != nil {
 			return nil, fmt.Errorf("file %d: %w", i, err)
@@ -181,35 +173,26 @@ func (v *Volume) Serialize() ([]byte, error) {
 	}
 	// Now that we have a size, make a blockmap.
 	totalSize := filesSize + 0x38 + 0x10
+	if totalSize < v.MinSize {
+		totalSize = v.MinSize
+	}
 	nblocks := uint32(totalSize / 256)
 	bmap := []blockmap{
 		{BlockCount: nblocks, BlockSize: 256},
 		{BlockCount: 0, BlockSize: 0},
 	}
-
-	// Update the padding file with padding data.
-	paddingNeeded := 0
-	if filesSize%256 != 0 {
-		paddingNeeded = 256 - (filesSize % 256)
+	if totalSize%256 != 0 {
+		totalSize += 256 - (totalSize % 256)
 	}
-	//v.files[paddingFileNumber].sections = []Section{&leafSection{
-	//	commonSectionHeader: commonSectionHeader{
-	//		// Doesn't matter, will get updated on next serialize.
-	//		Size: ToUint24(0),
-	//		Type: SectionTypeRaw,
-	//	},
-	//	data: bytes.Repeat([]byte{0xff}, paddingNeeded),
-	//}}
 
 	// Do final serialization pass into buffer.
 	buf := bytes.NewBuffer(nil)
 	// Header size.
 	v.Length = 0
 	// Blockmap size.
-	//v.Length += uint64(8 * len(bmap))
-	// Data size.
-	v.Length += uint64(filesSize + paddingNeeded)
 	v.HeaderLength = uint16(0x38 + 8*len(bmap))
+	// Data size.
+	v.Length += uint64(totalSize)
 	v.ExtHeaderOffset = 0
 	// TODO Reserved2/Revision?
 
@@ -247,6 +230,7 @@ func (v *Volume) Serialize() ([]byte, error) {
 		}
 	}
 
+	buf.Write(bytes.Repeat([]byte{0xff}, totalSize-buf.Len()))
 	buf.Write(v.Custom)
 	return buf.Bytes(), nil
 }

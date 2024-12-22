@@ -87,7 +87,7 @@ func (f *FirmwareFile) Serialize() ([]byte, error) {
 	if (f.Attributes & 0x40) != 0 {
 		f.ChecksumData = checksum8(data)
 	} else {
-		f.ChecksumData = 0x5a
+		f.ChecksumData = 0xaa
 	}
 	f.State = state
 
@@ -105,8 +105,14 @@ func (f *FirmwareFile) Serialize() ([]byte, error) {
 func readFile(r *NestedReader) (*FirmwareFile, error) {
 	start := r.TellGlobal()
 	var header FirmwareFileHeader
+	peek := r.pos
 	if err := binary.Read(r, binary.LittleEndian, &header); err != nil {
 		return nil, err
+	}
+
+	if header.GUID.String() == "ffffffff-ffff-ffff-ffff-ffffffffffff" {
+		r.pos = peek
+		return nil, nil
 	}
 
 	glog.V(1).Infof("File header @%08x: %+v", start, header)

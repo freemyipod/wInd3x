@@ -10,17 +10,21 @@ import (
 
 	"github.com/freemyipod/wInd3x/pkg/efi/compression"
 	"github.com/golang/glog"
+	"github.com/ulikunitz/xz/lzma"
 )
 
 type SectionType uint8
 
 const (
-	SectionTypeCompression SectionType = 1
-	SectionTypeGUIDDefined SectionType = 2
-	SectionTypePE32        SectionType = 16
-	SectionTypeTE          SectionType = 18
-	SectionTypeDXEDEPEX    SectionType = 19
-	SectionTypeRaw         SectionType = 25
+	SectionTypeCompression         SectionType = 1
+	SectionTypeGUIDDefined         SectionType = 2
+	SectionTypePE32                SectionType = 16
+	SectionTypeTE                  SectionType = 18
+	SectionTypeDXEDEPEX            SectionType = 19
+	SectionTypeVersion             SectionType = 20
+	SectionTypeUserInterface       SectionType = 21
+	SectionTypeFirmwareVolumeImage SectionType = 23
+	SectionTypeRaw                 SectionType = 25
 )
 
 func (s SectionType) String() string {
@@ -35,11 +39,22 @@ func (s SectionType) String() string {
 		return "te"
 	case SectionTypeDXEDEPEX:
 		return "depex"
+	case SectionTypeVersion:
+		return "version"
+	case SectionTypeUserInterface:
+		return "ui"
+	case SectionTypeFirmwareVolumeImage:
+		return "firmware volume image"
 	case SectionTypeRaw:
 		return "raw"
 	default:
 		return fmt.Sprintf("UNKNOWN(%d)", s)
 	}
+}
+
+type SectionOrFile struct {
+	Section Section
+	File    *FirmwareFile
 }
 
 // Section is the interface implemented by all EFI Firmware Volume File
@@ -48,7 +63,7 @@ type Section interface {
 	// Header returns the common header of this section.
 	Header() *commonSectionHeader
 	// Sub returns all Sections nested within this section, if applicable.
-	Sub() []Section
+	Sub() []SectionOrFile
 	// Serialize serializes this section into a binary.
 	Serialize() ([]byte, error)
 
@@ -104,8 +119,12 @@ type compressionSection struct {
 	sub []Section
 }
 
-func (c *compressionSection) Sub() []Section {
-	return c.sub
+func (c *compressionSection) Sub() []SectionOrFile {
+	res := make([]SectionOrFile, 0, len(c.sub))
+	for _, s := range c.sub {
+		res = append(res, SectionOrFile{Section: s})
+	}
+	return res
 }
 
 func concatSections(sub []Section) ([]byte, error) {
@@ -162,14 +181,46 @@ type guidSection struct {
 	sub    []Section
 }
 
-func (c *guidSection) Sub() []Section {
-	return c.sub
+func (c *guidSection) Sub() []SectionOrFile {
+	res := make([]SectionOrFile, 0, len(c.sub))
+	for _, s := range c.sub {
+		res = append(res, SectionOrFile{Section: s})
+	}
+	return res
 }
 
 func (c *guidSection) Serialize() ([]byte, error) {
 	data, err := concatSections(c.sub)
 	if err != nil {
 		return nil, err
+	}
+	if (c.extra.Attributes & 1) != 0 {
+		switch c.extra.SectionDefinitionGUID.String() {
+		case "ee4e5898-3914-4259-9d6e-dc7bd79403cf":
+			// LZMA compressed
+			wbuf := bytes.NewBuffer(nil)
+			wrc := lzma.WriterConfig{
+				SizeInHeader: true,
+				Size:         int64(len(data)),
+				BufSize:      1 << 15,
+				DictCap:      16 << 20,
+				//EOSMarker:    true,
+			}
+			w, err := wrc.NewWriter(wbuf)
+			if err != nil {
+				return nil, fmt.Errorf("could not open LZMA section: %w", err)
+			}
+			glog.V(2).Infof("  LZMA compressing %x bytes", len(data))
+			if _, err := w.Write(data); err != nil {
+				return nil, fmt.Errorf("could not compress LZMA section: %w", err)
+			}
+			if err := w.Close(); err != nil {
+				return nil, fmt.Errorf("could not close LZMA section: %w", err)
+			}
+			data = wbuf.Bytes()
+		default:
+			return nil, fmt.Errorf("need to process unknown GUID %s", c.extra.SectionDefinitionGUID.String())
+		}
 	}
 	c.commonSectionHeader.Size = ToUint24(uint32(4 + 20 + len(c.custom) + len(data)))
 	if c.extra.SectionDefinitionGUID.String() == "fc1bcdb0-7d31-49aa-936a-a4600d9dd083" {
@@ -204,7 +255,7 @@ type leafSection struct {
 	data []byte
 }
 
-func (c *leafSection) Sub() []Section {
+func (c *leafSection) Sub() []SectionOrFile {
 	return nil
 }
 
@@ -230,6 +281,46 @@ func (c *leafSection) SetRaw(d []byte) {
 	res := make([]byte, len(d))
 	copy(res, d)
 	c.data = res
+}
+
+type nestedImageSection struct {
+	commonSectionHeader
+	vol *Volume
+}
+
+func (c *nestedImageSection) Sub() []SectionOrFile {
+	var res []SectionOrFile
+	for _, f := range c.vol.Files {
+		res = append(res, SectionOrFile{File: f})
+		for _, s := range f.Sections {
+			res = append(res, SectionOrFile{Section: s})
+		}
+	}
+	return res
+}
+
+func (c *nestedImageSection) Serialize() ([]byte, error) {
+	compressed, err := c.vol.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	c.commonSectionHeader.Size = ToUint24(uint32(4 + len(compressed)))
+	buf := bytes.NewBuffer(nil)
+	if err := binary.Write(buf, binary.LittleEndian, c.commonSectionHeader); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.LittleEndian, compressed); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (c *nestedImageSection) Raw() []byte {
+	return nil
+}
+
+func (c *nestedImageSection) SetRaw(d []byte) {
+	return
 }
 
 func readSection(r *NestedReader) (Section, error) {
@@ -275,15 +366,40 @@ func readSection(r *NestedReader) (Section, error) {
 		if err := binary.Read(r, binary.LittleEndian, &res.extra); err != nil {
 			return nil, err
 		}
+		glog.V(2).Infof(" guid: %s, doffs: %x attrs: %x", res.extra.SectionDefinitionGUID.String(), res.extra.DataOffset, res.extra.Attributes)
 		customLength := int(res.extra.DataOffset - (4 + 20))
+		glog.V(2).Infof(" custom len: %x", customLength)
 		custom := make([]byte, customLength)
 		r.Read(custom)
 		res.custom = custom
-		glog.V(2).Infof("custom: %s", hex.EncodeToString(res.custom))
+		if customLength != 0 {
+			glog.V(2).Infof(" custom: %q", hex.EncodeToString(res.custom))
+		}
 
 		dataLength := int(header.Size.Uint32()-(4+20)) - customLength
 		dataSub := r.Sub(0, dataLength)
 		r.Advance(dataLength)
+
+		if (res.extra.Attributes & 1) != 0 {
+			glog.V(2).Infof(" needs processing")
+			switch res.extra.SectionDefinitionGUID.String() {
+			case "ee4e5898-3914-4259-9d6e-dc7bd79403cf":
+				// LZMA compressed
+				glog.V(2).Infof("  LZMA compressed")
+				data, _ := io.ReadAll(dataSub)
+				l, err := lzma.NewReader(bytes.NewBuffer(data))
+				if err != nil {
+					return nil, fmt.Errorf("could not open LZMA section: %w", err)
+				}
+				un, err := io.ReadAll(l)
+				if err != nil {
+					return nil, fmt.Errorf("could not decompress LZMA section: %w", err)
+				}
+				dataSub = NewNestedReader(un)
+			default:
+				return nil, fmt.Errorf("need to process unknown GUID %s", res.extra.SectionDefinitionGUID.String())
+			}
+		}
 
 		sub, err := readSections(dataSub)
 		if err != nil {
@@ -291,7 +407,7 @@ func readSection(r *NestedReader) (Section, error) {
 		}
 		res.sub = sub
 		return &res, nil
-	case SectionTypePE32, SectionTypeTE, SectionTypeRaw, SectionTypeDXEDEPEX:
+	case SectionTypePE32, SectionTypeTE, SectionTypeRaw, SectionTypeDXEDEPEX, SectionTypeUserInterface, SectionTypeVersion:
 		data := make([]byte, header.Size.Uint32()-(4))
 		if _, err := io.ReadFull(r, data); err != nil {
 			return nil, fmt.Errorf("reading data: %w", err)
@@ -299,6 +415,18 @@ func readSection(r *NestedReader) (Section, error) {
 		return &leafSection{
 			commonSectionHeader: header,
 			data:                data,
+		}, nil
+	case SectionTypeFirmwareVolumeImage:
+		glog.V(2).Infof(" nested firmware image volume")
+		sub := r.Sub(0, int(header.Size.Uint32()))
+		r.Advance(sub.Len())
+		vol, err := ReadVolume(sub)
+		if err != nil {
+			return nil, fmt.Errorf("reading nested image: %w", err)
+		}
+		return &nestedImageSection{
+			commonSectionHeader: header,
+			vol:                 vol,
 		}, nil
 	}
 	return nil, fmt.Errorf("unimplemented section type %s", header.Type)
