@@ -75,12 +75,15 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 		return nil, fmt.Errorf("could not serialize header: %w", err)
 	}
 
-	// Pad to 0x600/0x800.
-	if dk == devices.Nano3 {
-		buf.Write(bytes.Repeat([]byte{0}, 0x800-buf.Len()))
-	} else {
-		buf.Write(bytes.Repeat([]byte{0}, 0x600-buf.Len()))
+	// Pad to 0x600/0x800/0x400.
+	pad := 0x600
+	switch dk {
+	case devices.Nano3:
+		pad = 0x800
+	case devices.Nano7:
+		pad = 0x400
 	}
+	buf.Write(bytes.Repeat([]byte{0}, pad-buf.Len()))
 
 	// Add body.
 	buf.Write(body)
