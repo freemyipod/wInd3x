@@ -13,7 +13,6 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/syscfg"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -36,12 +35,12 @@ func readFrom(app *app.App, addr uint32) ([]byte, error) {
 func readCP15(app *app.App, register, reg2, opc2 uint8) (uint32, error) {
 	insns := app.Ep.DisableICache()
 	insns = append(insns,
-		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000000)},
+		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000100)},
 		// Read ID code.
 		uasm.Mrc{CPn: 15, Opc: 0, Dest: uasm.R0, CRn: register, CRm: reg2, Opc2: opc2},
 		uasm.Str{Src: uasm.R0, Dest: uasm.Deref(uasm.R1, 0)},
 	)
-	insns = append(insns, app.Ep.HandlerFooter(0x22000000)...)
+	insns = append(insns, app.Ep.HandlerFooter(0x22000100)...)
 	program := uasm.Program{
 		Address: app.Ep.ExecAddr(),
 		Listing: insns,
@@ -61,12 +60,12 @@ func readCP15(app *app.App, register, reg2, opc2 uint8) (uint32, error) {
 func readCP14(app *app.App, opc2, reg2 uint8) (uint32, error) {
 	insns := app.Ep.DisableICache()
 	insns = append(insns,
-		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000000)},
+		uasm.Ldr{Dest: uasm.R1, Src: uasm.Constant(0x22000100)},
 		// Read ID code.
 		uasm.Mrc{CPn: 14, Opc: 0, Dest: uasm.R0, CRn: 0, CRm: reg2, Opc2: opc2},
 		uasm.Str{Src: uasm.R0, Dest: uasm.Deref(uasm.R1, 0)},
 	)
-	insns = append(insns, app.Ep.HandlerFooter(0x22000000)...)
+	insns = append(insns, app.Ep.HandlerFooter(0x22000100)...)
 	program := uasm.Program{
 		Address: app.Ep.ExecAddr(),
 		Listing: insns,
@@ -86,6 +85,7 @@ func readCP14(app *app.App, opc2, reg2 uint8) (uint32, error) {
 func dumpCP15(app *app.App) {
 	is1176 := false
 	idcode, err := readCP15(app, 0, 0, 0)
+	partnum := (idcode >> 4) & 0xfff
 	if err != nil {
 		fmt.Printf("Failed to read ID Code: %v", err)
 	} else {
@@ -106,7 +106,7 @@ func dumpCP15(app *app.App) {
 		default:
 			fmt.Printf("  Architecture: unknown (%0x)\n", (idcode>>16)&0xf)
 		}
-		fmt.Printf("  Part number: %03x, Revision: %x\n", ((idcode) >> 4 & 0xfff), idcode&0xf)
+		fmt.Printf("  Part number: %03x, Revision: %x\n", partnum, idcode&0xf)
 	}
 
 	fmt.Println("Extra Junk:")
@@ -163,6 +163,11 @@ func dumpCP15(app *app.App) {
 		{true, 9, 8, 0, "Cache Behavior Override"},
 	} {
 		if el.only1176 && !is1176 {
+			continue
+		}
+		// Ugly hack to skip some CP15 reads on Cortex A5 (N7G)
+		// TODO(q3k): clean all of this up
+		if partnum == 0xc05 && el.reg1 > 3 {
 			continue
 		}
 		res, err := readCP15(app, el.reg1, el.reg2, el.opc2)
@@ -308,23 +313,6 @@ var spewCmd = &cobra.Command{
 			return err
 		}
 		defer app.Close()
-
-		addr := uint32(0x3800_0000)
-		for {
-			addr += 0x0010_0000
-			if addr >= 0x3c00_0000 {
-				break
-			}
-			data, err := readFrom(app, addr)
-			if err != nil {
-				return err
-			}
-			var u32 uint32
-			binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &u32)
-			glog.Infof("%08x: %08x", addr, u32)
-		}
-
-		return nil
 
 		fmt.Println("\nCP15")
 		fmt.Println("----")
