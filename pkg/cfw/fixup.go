@@ -16,6 +16,12 @@ func SecoreOffset(fv *efi.Volume) (int, error) {
 		return 0, fmt.Errorf("firmwware volume must have at least two files")
 	}
 
+	if fv.Files[0].FileType == efi.FileTypeSecurityCore {
+		// On N7G, the first file is the security core, and we just need to make
+		// sure it stays as the first file.
+		return fv.Files[0].ReadOffset, nil
+	}
+
 	ipadding := len(fv.Files) - 2
 	ite := len(fv.Files) - 1
 	if fv.Files[ipadding].FileType != efi.FileTypePadding {
