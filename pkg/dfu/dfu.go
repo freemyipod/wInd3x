@@ -131,6 +131,15 @@ func ClearStatus(usb *gousb.Device) error {
 	return nil
 }
 
+func ReceiveChunk(usb *gousb.Device, l int, blockno uint16) ([]byte, error) {
+	buf := make([]byte, l)
+	_, err := usb.Control(0xa1, uint8(RequestUpload), blockno, 0, buf)
+	if err != nil {
+		return nil, fmt.Errorf("control: %w", err)
+	}
+	return buf, nil
+}
+
 func SendChunk(usb *gousb.Device, c []byte, blockno uint16) error {
 	_, err := usb.Control(0x21, uint8(RequestDnload), blockno, 0, c)
 	if err != nil {
