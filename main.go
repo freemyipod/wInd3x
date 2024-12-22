@@ -42,7 +42,6 @@ func main() {
 	norCmd.AddCommand(norReadCmd)
 	rootCmd.AddCommand(norCmd)
 	rootCmd.AddCommand(spewCmd)
-	cfwCmd.AddCommand(cfwN3gTestCmd)
 	cfwCmd.AddCommand(cfwRunCmd)
 	rootCmd.AddCommand(cfwCmd)
 	rootCmd.AddCommand(restoreCmd)
