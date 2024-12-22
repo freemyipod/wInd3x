@@ -46,6 +46,41 @@ var wtfDefangers = map[devices.Kind]defanger{
 			}),
 		},
 	})),
+	devices.Nano7: defangEFI(cfw.MultipleVisitors([]cfw.VolumeVisitor{
+		// Change USB vendor string in ARM/AppleMobilePkg/Dfu/Dfu/DEBUG/Dfu.dll.
+		&cfw.VisitPE32InFile{
+			FileGUID: efi.MustParseGUID("936ffb79-62f6-4fc0-aff0-3e2a1c56f1a7"),
+			Patch: cfw.Patches([]cfw.Patch{
+				cfw.ReplaceExact{From: []byte("Apple Inc."), To: []byte("freemyipod")},
+			}),
+		},
+		// Disable signature checking in ARM/SamsungPkg/Chipset/S5L8720/ROMBootValidator/ROMBootValidator/DEBUG/ROMBootValidator.dll
+		&cfw.VisitPE32InFile{
+			FileGUID: efi.MustParseGUID("1ba058e3-2063-4919-8002-6d2e0c947e60"),
+			Patch: cfw.Patches([]cfw.Patch{
+				// CheckHeaderSignatureImpl -> return 0
+				cfw.PatchAt{
+					Address: 0x19a4,
+					To: []byte{
+						0x00, 0x20,
+						0x70, 0x47,
+					},
+				},
+				// CheckDataSignature -> return 1
+				cfw.PatchAt{
+					Address: 0x0d78,
+					To: []byte{
+						0x01, 0x20,
+						0x70, 0x47,
+					},
+				},
+				cfw.PatchAt{
+					Address: 0x17a0,
+					To:      []byte{0, 0, 0, 0},
+				},
+			}),
+		},
+	})),
 }
 
 func defangEFI(visitor cfw.VolumeVisitor) defanger {
@@ -64,7 +99,12 @@ func defangEFI(visitor cfw.VolumeVisitor) defanger {
 }
 
 func ApplyPatches(img *image.IMG1, patches cfw.VolumeVisitor) ([]byte, error) {
-	nr := efi.NewNestedReader(img.Body[0x100:])
+	offs := 0x100
+	switch img.DeviceKind {
+	case devices.Nano7:
+		offs = 0
+	}
+	nr := efi.NewNestedReader(img.Body[offs:])
 	fv, err := efi.ReadVolume(nr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read firmware volume: %w", err)
@@ -92,7 +132,7 @@ func ApplyPatches(img *image.IMG1, patches cfw.VolumeVisitor) ([]byte, error) {
 		return nil, fmt.Errorf("failed to rebuild firmware: %w", err)
 	}
 
-	fvb = append(img.Body[:0x100], fvb...)
+	fvb = append(img.Body[:offs], fvb...)
 	imb, err := image.MakeUnsigned(img.DeviceKind, img.Header.Entrypoint, fvb)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build new image1: %w", err)
