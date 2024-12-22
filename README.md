@@ -3,19 +3,19 @@
 wInd3x
 ======
 
-Tethered clickwheel iPod bootrom/DFU exploit.
+Tethered clickwheel iPod bootrom/DFU exploit tool.
 
-Supports a handful of devices previously supported by Pwnage 2.0, newly supports Nano 5G.
+Implements 'wInd3x' exploit (described below) and [s5late](https://github.com/m-gsch/S5Late/) exploit by gsch.
 
-| Device       | Haxed DFU     | Decrypt/Dump | Notes                             |
-|--------------|---------------|--------------|-----------------------------------|
-| Nano 3G      | **YES**       | **YES**      |                                   |
-| Nano 4G      | **YES**       | **YES**      |                                   |
-| Nano 5G      | **YES**       | **YES**      |                                   |
-| Nano 6G      | never         | never        |                                   |
-| Nano 7G      | never         | never        |                                   |
-| Classic “6G” | **YES**       | **YES**      | Experimental, same ROM as Nano 3G |
-| iPod Touch   | never         | never        |                                   |
+| Device       | Haxed DFU     | Decrypt/Dump | CFW          | Exploit           | Notes        |
+|--------------|---------------|--------------|--------------|-------------------|--------------|
+| Nano 3G      | **YES**       | **YES**      | soon         | wInd3x            |              |
+| Nano 4G      | **YES**       | **YES**      | soon         | wInd3x            |              |
+| Nano 5G      | **YES**       | **YES**      | **YES**      | wInd3x            |              |
+| Nano 6G      | soon          | soon         | soon         |                   |              |
+| Nano 7G      | soon          | **YES**      | soon         | s5late -> wInd3x  |              |
+| Classic “6G” | **YES**       | **YES**      | soon         | wInd3x            | Experimental |
+| iPod Touch   | never         | never        | never        |                   |              |
 
 Host OS support
 --------
@@ -25,6 +25,8 @@ Host OS support
 Every other device and functionality should work on any operating system that wInd3x can be built on, but still only Linux is regularly tested and supported.
 
 As a workaround, please consider running wInd3x from a Raspberry Pi.
+
+**NOTE**: This might change as wIndex gets ported to use S5Late on all generations.
 
 Building
 --------
@@ -126,8 +128,8 @@ Known issues
 
 1. Decryption/dumping is slow, as every 0x30/0x40 we run the exploit again. We should find a better way to get code execution for this kind of tasks.
 
-Vulnerability
-=============
+wInd3x Vulnerability
+====================
 
 This exploits a vulnerability in the standard SETUP packet parsing code of the bootrom, in which the wIndex parameter is not checked for bmRequest == {0x20, 0x40}, but is still used to index an array of interface/class handlers (that in the Bootrom has a length of 1).
 
