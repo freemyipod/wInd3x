@@ -136,7 +136,7 @@ In recovery mode, the device boot flow is as follows:
 
     BootROM -> WTF (DFU) -> Disk Mode (DFU)
 
-In out CFW mode, the device boot flow is as follows:
+In our CFW mode, the device boot flow is as follows:
 
     BootROM -> WTF, defanged (DFU) -> Modified RetailOS/U-Boot/... (DFU)
 
