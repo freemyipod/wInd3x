@@ -170,7 +170,7 @@ func urlForKind(pk PayloadKind, dk devices.Kind) (string, error) {
 		return RecoveryWTFURL(dk)
 	case PayloadKindRecoveryUpstream:
 		return RecoveryFirmwareDFUURL(dk)
-	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream:
+	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
 		return FirmwareURL(dk)
 	default:
 		return "", nil

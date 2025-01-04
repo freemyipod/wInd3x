@@ -38,6 +38,7 @@ const (
 	PayloadKindBootloaderUpstream PayloadKind = "bootloader-upstream"
 
 	PayloadKindRetailOSUpstream PayloadKind = "retailos-upstream"
+	PayloadKindDiagsUpstream    PayloadKind = "diags-upstream"
 
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
@@ -63,7 +64,7 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 		want = regexp.MustCompile(`^firmware/dfu/wtf.*release\.dfu$`)
 	case PayloadKindRecoveryUpstream:
 		want = regexp.MustCompile(`^firmware/dfu/firmware.*release\.dfu$`)
-	case PayloadKindFirmwareUpstream, PayloadKindRetailOSUpstream:
+	case PayloadKindFirmwareUpstream, PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
 		want = regexp.MustCompile(`^firmware.*$`)
 	case PayloadKindBootloaderUpstream:
 		want = regexp.MustCompile(`^n.*\.bootloader.*\.rb3$`)
@@ -89,14 +90,21 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 	}
 
 	switch pk {
-	case PayloadKindRetailOSUpstream:
+	case PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
 		m, err := mse.Parse(bytes.NewReader(data))
 		if err != nil {
 			return fmt.Errorf("could not parse firmware: %w", err)
 		}
-		mf := m.FileByName("osos")
+		fname := ""
+		switch pk {
+		case PayloadKindRetailOSUpstream:
+			fname = "osos"
+		case PayloadKindDiagsUpstream:
+			fname = "diag"
+		}
+		mf := m.FileByName(fname)
 		if mf == nil {
-			return fmt.Errorf("no osos in firmware")
+			return fmt.Errorf("no %q in firmware", fname)
 		}
 		data = mf.Data
 	}
@@ -175,7 +183,7 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 	}
 
 	switch payload {
-	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream:
+	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
 		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)
