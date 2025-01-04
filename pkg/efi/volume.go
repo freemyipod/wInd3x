@@ -129,7 +129,7 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	glog.V(1).Infof("%d files", len(files))
 
 	paddingLen := r.Len() - restSize
-	glog.Infof("padding len: 0x%x", paddingLen)
+	glog.V(1).Infof("padding len: 0x%x", paddingLen)
 	padding := make([]byte, paddingLen)
 	r.Read(padding)
 	if !bytes.Equal(padding, bytes.Repeat([]byte{0xff}, paddingLen)) {
@@ -140,8 +140,8 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading rest failed: %v", err)
 	}
-	glog.Infof("rest len: 0x%x", len(rest))
-	glog.Infof("rest:\n%s", hex.Dump(rest))
+	glog.V(1).Infof("rest len: 0x%x", len(rest))
+	glog.V(1).Infof("rest:\n%s", hex.Dump(rest))
 
 	return &Volume{
 		FirmwareVolumeHeader: header,
