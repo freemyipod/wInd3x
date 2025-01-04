@@ -123,6 +123,30 @@ If you decrypted a valid WTF image, you should be able to then run it:
 
     $ ./wInd3x run wtf-dec.dfu
 
+CFW
+---
+
+wInd3x has support for 'CFW' (custom firmware), which is the ability to run modified RetailOS binaries or custom payloads like U-Boot from BootROM DFU mode.
+
+Usually, the device boot flow is as follows:
+
+    BootROM -> Bootloader (NAND) -> RetailOS (NAND)
+
+In recovery mode, the device boot flow is as follows:
+
+    BootROM -> WTF (DFU) -> Disk Mode (DFU)
+
+In out CFW mode, the device boot flow is as follows:
+
+    BootROM -> WTF, defanged (DFU) -> Modified RetailOS/U-Boot/... (DFU)
+
+wInd3x packages an all-in-one workflow for running the target payload under the `wInd3x cfw run` command. For example, you could run a modified RetailOS as follows after connecting an N7G in DFU mode:
+
+    $ ./wInd3x download retailos n7g-retailos.bin
+    $ ./wInd3x decrypt n7g-retailos.bin n7g-retailos.bin.dec
+    $ # hack on n7g-retailos.bin.dec....
+    $ ./wInd3x cfw run n7g-retailos.bin.dec
+
 Known issues
 ============
 

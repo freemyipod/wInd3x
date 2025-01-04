@@ -21,6 +21,7 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
 	"github.com/freemyipod/wInd3x/pkg/image"
+	"github.com/freemyipod/wInd3x/pkg/mse"
 )
 
 type PayloadKind string
@@ -35,6 +36,8 @@ const (
 
 	PayloadKindFirmwareUpstream   PayloadKind = "firmware-upstream"
 	PayloadKindBootloaderUpstream PayloadKind = "bootloader-upstream"
+
+	PayloadKindRetailOSUpstream PayloadKind = "retailos-upstream"
 
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
@@ -60,7 +63,7 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 		want = regexp.MustCompile(`^firmware/dfu/wtf.*release\.dfu$`)
 	case PayloadKindRecoveryUpstream:
 		want = regexp.MustCompile(`^firmware/dfu/firmware.*release\.dfu$`)
-	case PayloadKindFirmwareUpstream:
+	case PayloadKindFirmwareUpstream, PayloadKindRetailOSUpstream:
 		want = regexp.MustCompile(`^firmware.*$`)
 	case PayloadKindBootloaderUpstream:
 		want = regexp.MustCompile(`^n.*\.bootloader.*\.rb3$`)
@@ -83,6 +86,19 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
 		return fmt.Errorf("could not read %q from IPSW: %w", fname, err)
+	}
+
+	switch pk {
+	case PayloadKindRetailOSUpstream:
+		m, err := mse.Parse(bytes.NewReader(data))
+		if err != nil {
+			return fmt.Errorf("could not parse firmware: %w", err)
+		}
+		mf := m.FileByName("osos")
+		if mf == nil {
+			return fmt.Errorf("no osos in firmware")
+		}
+		data = mf.Data
 	}
 
 	fspath := pathFor(&dk, pk, url)
@@ -159,7 +175,7 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 	}
 
 	switch payload {
-	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
+	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream:
 		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)

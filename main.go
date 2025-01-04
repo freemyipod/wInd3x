@@ -47,6 +47,7 @@ func main() {
 	rootCmd.AddCommand(restoreCmd)
 	mseCmd.AddCommand(mseExtractCmd)
 	rootCmd.AddCommand(mseCmd)
+	rootCmd.AddCommand(downloadCmd)
 	if !flag.Parsed() {
 		flag.Parse()
 	}

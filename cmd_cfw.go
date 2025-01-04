@@ -24,7 +24,7 @@ var cfwCmd = &cobra.Command{
 }
 
 var cfwRunCmd = &cobra.Command{
-	Use:   "run [modified WTF] [firmware]",
+	Use:   "run [firmware]",
 	Short: "Run CFW",
 	Long:  "Run CFW based on modified WTF and firmware (eg. modified OSOS or u-boot)",
 	Args:  cobra.ExactArgs(1),

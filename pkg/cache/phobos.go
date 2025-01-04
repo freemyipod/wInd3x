@@ -37,7 +37,7 @@ type iPodSoftwareVersion struct {
 	FirmwareURL     string `plist:"FirmwareURL"`
 }
 
-const jingleURL = "http://ax.phobos.apple.com.edgesuite.net/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version"
+const jingleURL = "https://itunes.apple.com/WebObjects/MZStore.woa/wa/com.apple.jingle.appserver.client.MZITunesClientCheck/version"
 
 var (
 	extraFirmwareVersions = map[devices.Kind]map[string]string{
@@ -170,7 +170,7 @@ func urlForKind(pk PayloadKind, dk devices.Kind) (string, error) {
 		return RecoveryWTFURL(dk)
 	case PayloadKindRecoveryUpstream:
 		return RecoveryFirmwareDFUURL(dk)
-	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream:
+	case PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream:
 		return FirmwareURL(dk)
 	default:
 		return "", nil
