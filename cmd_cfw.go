@@ -55,9 +55,11 @@ var cfwRunCmd = &cobra.Command{
 		}
 
 		_, err = image.Read(bytes.NewReader(fwb))
-		switch err {
-		case nil:
-		case image.ErrNotImage1:
+		switch {
+		case err == nil:
+		case err == image.ErrNotImage1:
+			fallthrough
+		case len(fwb) < 0x400:
 			glog.Infof("Given firmware file is not IMG1, packing into one...")
 			fwb, err = image.MakeUnsigned(app.Desc.Kind, 0, fwb)
 			if err != nil {
