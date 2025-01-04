@@ -62,21 +62,48 @@ var wtfDefangers = map[devices.Kind]defanger{
 				cfw.PatchAt{
 					Address: 0x19a4,
 					To: []byte{
-						0x00, 0x20,
-						0x70, 0x47,
+						0x00, 0x20, // mov r0, #0
+						0x70, 0x47, // bx lr
 					},
 				},
 				// CheckDataSignature -> return 1
 				cfw.PatchAt{
 					Address: 0x0d78,
 					To: []byte{
-						0x01, 0x20,
-						0x70, 0x47,
+						0x01, 0x20, // mov r0, #1
+						0x70, 0x47, // bx lr
 					},
 				},
+				// Call AES for both type 4 and type 3 (we generate type 4,
+				// while usually AES images are type 3, we turn AES decryption
+				// into a no-op in Aes.dll below).
 				cfw.PatchAt{
-					Address: 0x17a0,
-					To:      []byte{0, 0, 0, 0},
+					Address: 0x176e,
+					To: []byte{
+						0x04, 0x28, // cmp r0, #4
+					},
+				},
+			}),
+		},
+		// Replace AES decryption with no-op memcpy
+		&cfw.VisitPE32InFile{
+			FileGUID: efi.MustParseGUID("c0287dba-8a73-4ff1-98f1-455b97d4d480"),
+			Patch: cfw.Patches([]cfw.Patch{
+				// AESProtocol::Decrypt -> memcpy
+				cfw.PatchAt{
+					Address: 0x488,
+					To: []byte{
+						// _loop:
+						0x08, 0x68, // ldr r0, [r1]
+						0x04, 0x31, // add r1, r1, #4
+						0x10, 0x60, // str r0, [r2]
+						0x04, 0x32, // add r2, r2, #4
+						0x04, 0x3b, // sub r3, r3, #4
+						0x03, 0xb1, // cbz r3, _done
+						0xf8, 0xe7, // b _loop
+						// _done:
+						0x70, 0x47, // bx lr
+					},
 				},
 			}),
 		},
