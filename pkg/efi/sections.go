@@ -283,14 +283,14 @@ func (c *leafSection) SetRaw(d []byte) {
 	c.data = res
 }
 
-type nestedImageSection struct {
+type NestedImageSection struct {
 	commonSectionHeader
-	vol *Volume
+	Vol *Volume
 }
 
-func (c *nestedImageSection) Sub() []SectionOrFile {
+func (c *NestedImageSection) Sub() []SectionOrFile {
 	var res []SectionOrFile
-	for _, f := range c.vol.Files {
+	for _, f := range c.Vol.Files {
 		res = append(res, SectionOrFile{File: f})
 		for _, s := range f.Sections {
 			res = append(res, SectionOrFile{Section: s})
@@ -299,8 +299,8 @@ func (c *nestedImageSection) Sub() []SectionOrFile {
 	return res
 }
 
-func (c *nestedImageSection) Serialize() ([]byte, error) {
-	compressed, err := c.vol.Serialize()
+func (c *NestedImageSection) Serialize() ([]byte, error) {
+	compressed, err := c.Vol.Serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -315,11 +315,11 @@ func (c *nestedImageSection) Serialize() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (c *nestedImageSection) Raw() []byte {
+func (c *NestedImageSection) Raw() []byte {
 	return nil
 }
 
-func (c *nestedImageSection) SetRaw(d []byte) {
+func (c *NestedImageSection) SetRaw(d []byte) {
 	return
 }
 
@@ -424,9 +424,9 @@ func readSection(r *NestedReader) (Section, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading nested image: %w", err)
 		}
-		return &nestedImageSection{
+		return &NestedImageSection{
 			commonSectionHeader: header,
-			vol:                 vol,
+			Vol:                 vol,
 		}, nil
 	}
 	return nil, fmt.Errorf("unimplemented section type %s", header.Type)
