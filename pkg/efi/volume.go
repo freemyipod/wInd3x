@@ -95,25 +95,12 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	glog.V(1).Infof("Blockmap: %+v", bmap)
 
 	dataSize := bmap[0].BlockCount * bmap[0].BlockSize
-	// This doesn't make sense, but otherwise that section is just too large. I
-	// think it's an implementation bug in the iPod firmware.
-	//dataSize -= 0x28 + 0x20
-	//dataSize = 144928 - 0x50
 
 	glog.V(1).Infof(" reader size: %x", r.Len()+r.pos)
+	glog.V(1).Infof(" length: %x", header.Length)
 	glog.V(1).Infof(" block count size: %x", dataSize)
 	restSize := (r.Len() + r.pos) - int(dataSize)
 	glog.V(1).Infof(" rest size: %x", restSize)
-
-	//dataSub := r
-
-	glog.V(1).Infof("Data size: %d bytes", dataSize)
-
-	// Currently always 928 bytes of trailing data. That's the signature / cert
-	// chain. We should also be able to recover this size from the IMG1 header.
-	//if len(rest) != 928 {
-	//	return nil, fmt.Errorf("trailing data of %d bytes", len(rest))
-	//}
 
 	var files []*FirmwareFile
 	for r.Len() != 0 {
@@ -126,7 +113,7 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 		}
 		files = append(files, file)
 	}
-	glog.V(1).Infof("%d files", len(files))
+	glog.V(1).Infof("%d files, %x bytes left", len(files), r.Len())
 
 	paddingLen := r.Len() - restSize
 	glog.V(1).Infof("padding len: 0x%x", paddingLen)
@@ -176,13 +163,14 @@ func (v *Volume) Serialize() ([]byte, error) {
 	if totalSize < v.MinSize {
 		totalSize = v.MinSize
 	}
+	if totalSize%256 != 0 {
+		totalSize += 256 - (totalSize % 256)
+	}
+
 	nblocks := uint32(totalSize / 256)
 	bmap := []blockmap{
 		{BlockCount: nblocks, BlockSize: 256},
 		{BlockCount: 0, BlockSize: 0},
-	}
-	if totalSize%256 != 0 {
-		totalSize += 256 - (totalSize % 256)
 	}
 
 	// Do final serialization pass into buffer.
