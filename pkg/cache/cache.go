@@ -34,8 +34,11 @@ const (
 
 	PayloadKindRecoveryUpstream PayloadKind = "recovery-upstream"
 
-	PayloadKindFirmwareUpstream   PayloadKind = "firmware-upstream"
-	PayloadKindBootloaderUpstream PayloadKind = "bootloader-upstream"
+	PayloadKindFirmwareUpstream PayloadKind = "firmware-upstream"
+
+	PayloadKindBootloaderUpstream       PayloadKind = "bootloader-upstream"
+	PayloadKindBootloaderDecrypted      PayloadKind = "bootloader-decrypted"
+	PayloadKindBootloaderDecryptedCache PayloadKind = "bootloader-decrypted-cache"
 
 	PayloadKindRetailOSUpstream PayloadKind = "retailos-upstream"
 	PayloadKindDiagsUpstream    PayloadKind = "diags-upstream"
@@ -117,6 +120,36 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 	return nil
 }
 
+func getBootloaderDecrypted(app *app.App) error {
+	encrypted, err := Get(app, PayloadKindBootloaderUpstream)
+	if err != nil {
+		return err
+	}
+	img1, err := image.Read(bytes.NewReader(encrypted))
+	if err != nil {
+		return fmt.Errorf("could not parse WTF IMG1: %w", err)
+	}
+
+	recovery := pathFor(&app.Desc.Kind, PayloadKindBootloaderDecryptedCache, "")
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
+	if err != nil {
+		return fmt.Errorf("could not decrypt bootloader: %w", err)
+	}
+
+	wrapper, err := image.MakeUnsigned(app.Desc.Kind, img1.Header.Entrypoint, decrypted)
+	if err != nil {
+		return fmt.Errorf("could not re-pack decrypted bootloader: %w", err)
+	}
+
+	fspath := pathFor(&app.Desc.Kind, PayloadKindBootloaderDecrypted, "")
+	os.MkdirAll(filepath.Dir(fspath), 0755)
+	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
+		return fmt.Errorf("could not write bootloader: %w", err)
+	}
+	os.Remove(recovery)
+	return nil
+}
+
 func getWTFDecrypted(app *app.App) error {
 	encrypted, err := Get(app, PayloadKindWTFUpstream)
 	if err != nil {
@@ -185,6 +218,8 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 	switch payload {
 	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
 		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url)
+	case PayloadKindBootloaderDecrypted:
+		err = getBootloaderDecrypted(app)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)
 	case PayloadKindWTFDefanged:
