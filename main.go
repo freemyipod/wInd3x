@@ -43,6 +43,7 @@ func main() {
 	rootCmd.AddCommand(norCmd)
 	rootCmd.AddCommand(spewCmd)
 	cfwCmd.AddCommand(cfwRunCmd)
+	cfwCmd.AddCommand(cfwSuperdiagsCmd)
 	rootCmd.AddCommand(cfwCmd)
 	rootCmd.AddCommand(restoreCmd)
 	mseCmd.AddCommand(mseExtractCmd)

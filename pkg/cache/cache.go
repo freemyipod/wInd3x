@@ -41,7 +41,10 @@ const (
 	PayloadKindBootloaderDecryptedCache PayloadKind = "bootloader-decrypted-cache"
 
 	PayloadKindRetailOSUpstream PayloadKind = "retailos-upstream"
-	PayloadKindDiagsUpstream    PayloadKind = "diags-upstream"
+
+	PayloadKindDiagsUpstream       PayloadKind = "diags-upstream"
+	PayloadKindDiagsDecrypted      PayloadKind = "diags-decrypted"
+	PayloadKindDiagsDecryptedCache PayloadKind = "diags-decrypted-cache"
 
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
@@ -180,6 +183,36 @@ func getWTFDecrypted(app *app.App) error {
 	return nil
 }
 
+func getDiagsDecrypted(app *app.App) error {
+	encrypted, err := Get(app, PayloadKindDiagsUpstream)
+	if err != nil {
+		return err
+	}
+	img1, err := image.Read(bytes.NewReader(encrypted))
+	if err != nil {
+		return fmt.Errorf("could not parse diag IMG1: %w", err)
+	}
+
+	recovery := pathFor(&app.Desc.Kind, PayloadKindDiagsDecryptedCache, "")
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
+	if err != nil {
+		return fmt.Errorf("could not decrypt diag: %w", err)
+	}
+
+	wrapper, err := image.MakeUnsigned(app.Desc.Kind, img1.Header.Entrypoint, decrypted)
+	if err != nil {
+		return fmt.Errorf("could not re-pack decrypted diag: %w", err)
+	}
+
+	fspath := pathFor(&app.Desc.Kind, PayloadKindDiagsDecrypted, "")
+	os.MkdirAll(filepath.Dir(fspath), 0755)
+	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
+		return fmt.Errorf("could not write diag: %w", err)
+	}
+	os.Remove(recovery)
+	return nil
+}
+
 func getWTFDefanged(app *app.App) error {
 	defanger, ok := wtfDefangers[app.Desc.Kind]
 	if !ok {
@@ -222,6 +255,8 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 		err = getBootloaderDecrypted(app)
 	case PayloadKindWTFDecrypted:
 		err = getWTFDecrypted(app)
+	case PayloadKindDiagsDecrypted:
+		err = getDiagsDecrypted(app)
 	case PayloadKindWTFDefanged:
 		err = getWTFDefanged(app)
 	default:
