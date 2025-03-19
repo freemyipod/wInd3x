@@ -1,6 +1,6 @@
 module github.com/freemyipod/wInd3x
 
-go 1.16
+go 1.18
 
 require (
 	github.com/adrg/xdg v0.4.0
@@ -12,6 +12,12 @@ require (
 	github.com/tetratelabs/wazero v1.0.0-pre.1
 	github.com/ulikunitz/xz v0.5.12
 	howett.net/plist v1.0.0
+)
+
+require (
+	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
 )
 
 // Necessary for https://github.com/DHowett/go-plist/pull/76
