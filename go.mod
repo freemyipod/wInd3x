@@ -17,7 +17,7 @@ require (
 require (
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 )
 
 // Necessary for https://github.com/DHowett/go-plist/pull/76
