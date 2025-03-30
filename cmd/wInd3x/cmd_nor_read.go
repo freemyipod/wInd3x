@@ -70,7 +70,7 @@ var norReadCmd = &cobra.Command{
 	Long:  "Read N bytes from an address from given SPI peripheral.",
 	Args:  cobra.ExactArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ var norReadCmd = &cobra.Command{
 			return err
 		}
 		glog.Infof("Reading NOR address 0x%08x... (SPI %d, %d bytes)", address, spino, count)
-		err = readNOR(app, f, spino, address, count)
+		err = readNOR(&app.App, f, spino, address, count)
 		if err != nil {
 			return err
 		}

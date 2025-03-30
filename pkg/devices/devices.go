@@ -1,11 +1,5 @@
 package devices
 
-import (
-	"github.com/google/gousb"
-
-	"github.com/freemyipod/wInd3x/pkg/dfu"
-)
-
 type Kind string
 
 const (
@@ -22,6 +16,15 @@ const (
 	DFU  InterfaceKind = "dfu"
 	WTF  InterfaceKind = "wtf"
 	Disk InterfaceKind = "diskmode"
+)
+
+type DFUProtoVersion int
+
+const (
+	// DFUProtoVersion1 is implemented by Nano3G.
+	DFUProtoVersion1 DFUProtoVersion = 1
+	// DFUProtoVersion2 is implemented by Nano4G+.
+	DFUProtoVersion2 DFUProtoVersion = 2
 )
 
 func (k Kind) String() string {
@@ -56,12 +59,12 @@ func (k Kind) SoCCode() string {
 	return "INVL"
 }
 
-func (k Kind) DFUVersion() dfu.ProtoVersion {
+func (k Kind) DFUVersion() DFUProtoVersion {
 	switch k {
 	case Nano3:
-		return dfu.ProtoVersion1
+		return DFUProtoVersion1
 	default:
-		return dfu.ProtoVersion2
+		return DFUProtoVersion2
 	}
 }
 
@@ -75,8 +78,8 @@ func (k Kind) Description() Description {
 }
 
 type Description struct {
-	VID             gousb.ID
-	PIDs            map[InterfaceKind]gousb.ID
+	VID             int16
+	PIDs            map[InterfaceKind]int16
 	UpdaterFamilyID int
 	Kind            Kind
 }
@@ -84,7 +87,7 @@ type Description struct {
 var Descriptions = []Description{
 	{
 		VID: 0x05ac,
-		PIDs: map[InterfaceKind]gousb.ID{
+		PIDs: map[InterfaceKind]int16{
 			DFU:  0x1223,
 			WTF:  0x1242,
 			Disk: 0x1262,
@@ -94,7 +97,7 @@ var Descriptions = []Description{
 	},
 	{
 		VID: 0x05ac,
-		PIDs: map[InterfaceKind]gousb.ID{
+		PIDs: map[InterfaceKind]int16{
 			DFU:  0x1225,
 			WTF:  0x1243,
 			Disk: 0x1263,
@@ -104,7 +107,7 @@ var Descriptions = []Description{
 	},
 	{
 		VID: 0x05ac,
-		PIDs: map[InterfaceKind]gousb.ID{
+		PIDs: map[InterfaceKind]int16{
 			DFU:  0x1231,
 			WTF:  0x1246,
 			Disk: 0x1265,
@@ -114,7 +117,7 @@ var Descriptions = []Description{
 	},
 	{
 		VID: 0x05ac,
-		PIDs: map[InterfaceKind]gousb.ID{
+		PIDs: map[InterfaceKind]int16{
 			DFU:  0x1232,
 			WTF:  0x1248,
 			Disk: 0x1266,
@@ -124,7 +127,7 @@ var Descriptions = []Description{
 	},
 	{
 		VID: 0x05ac,
-		PIDs: map[InterfaceKind]gousb.ID{
+		PIDs: map[InterfaceKind]int16{
 			DFU:  0x1234,
 			WTF:  0x1249,
 			Disk: 0x1267,

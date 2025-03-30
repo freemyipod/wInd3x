@@ -33,7 +33,7 @@ Building
 
 You'll need go and libusb. Then:
 
-    $ go build
+    $ go build ./cmd/wInd3x
 
 Or, if you have Nix(OS), just do:
 

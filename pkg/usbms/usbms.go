@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/google/gousb"
+	"github.com/freemyipod/wInd3x/pkg/devices"
 )
 
 type CBW struct {
@@ -26,9 +26,8 @@ type CBS struct {
 }
 
 type Host struct {
-	InEndpoint  *gousb.InEndpoint
-	OutEndpoint *gousb.OutEndpoint
-	Tag         uint32
+	Endpoints devices.UsbMsEndpoints
+	Tag       uint32
 }
 
 func (h *Host) InquiryVPD(page uint8, allocation uint16) ([]byte, error) {
@@ -67,18 +66,18 @@ func (h *Host) RawCommand(cbd *CommandDataBuffer) error {
 		return fmt.Errorf("building CBW failed: %w", err)
 	}
 	cbwb := cbw.Bytes()
-	if _, err := h.OutEndpoint.Write(cbwb); err != nil {
+	if _, err := h.Endpoints.Out.Write(cbwb); err != nil {
 		return fmt.Errorf("write failed: %w", err)
 	}
 	switch cbd.DataTransferDirection {
 	case DataTransferFromDevice:
-		n, err := h.InEndpoint.Read(cbd.Data)
+		n, err := h.Endpoints.In.Read(cbd.Data)
 		if err != nil {
 			return fmt.Errorf("data read failed: %w", err)
 		}
 		cbd.Data = cbd.Data[:n]
 	case DataTransferToDevice:
-		n, err := h.OutEndpoint.Write(cbd.Data)
+		n, err := h.Endpoints.Out.Write(cbd.Data)
 		if err != nil {
 			return fmt.Errorf("data write failed: %w", err)
 		}
@@ -88,7 +87,7 @@ func (h *Host) RawCommand(cbd *CommandDataBuffer) error {
 	}
 
 	cbsb := make([]byte, 13)
-	if n, err := h.InEndpoint.Read(cbsb); err != nil && n != 13 {
+	if n, err := h.Endpoints.In.Read(cbsb); err != nil && n != 13 {
 		return fmt.Errorf("status read failed: %w", err)
 	}
 	var cbs CBS

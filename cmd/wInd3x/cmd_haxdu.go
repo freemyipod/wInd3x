@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
 )
 
@@ -14,7 +13,7 @@ var haxDFUCmd = &cobra.Command{
 	Short: "Started 'haxed dfu' mode on a device",
 	Long:  "Runs the wInd3x exploit to turn off security measures in the DFU that's currently running on a connected devices, allowing unsigned/unencrypted images to run.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}

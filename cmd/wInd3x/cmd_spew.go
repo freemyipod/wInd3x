@@ -308,7 +308,7 @@ var spewCmd = &cobra.Command{
 	Long:  "Displays SysCfg, GPIO, ... info from the connected device. Useful for reverse engineering and development.",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -317,13 +317,13 @@ var spewCmd = &cobra.Command{
 		fmt.Println("\nCP15")
 		fmt.Println("----")
 
-		dumpCP15(app)
+		dumpCP15(&app.App)
 
 		fmt.Println("\nCP14 (debug)")
 		fmt.Println("----")
 
 		fmt.Printf("  DIDR: ")
-		didr, err := readCP14(app, 0, 0)
+		didr, err := readCP14(&app.App, 0, 0)
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 		} else {
@@ -338,7 +338,7 @@ var spewCmd = &cobra.Command{
 		}
 
 		fmt.Printf("  DSCR: ")
-		dscr, err := readCP14(app, 0, 1)
+		dscr, err := readCP14(&app.App, 0, 1)
 		if err != nil {
 			fmt.Printf("error: %v\n", err)
 		} else {
@@ -350,7 +350,7 @@ var spewCmd = &cobra.Command{
 		fmt.Println("------")
 
 		syscfgBuf := bytes.NewBuffer(nil)
-		err = readNOR(app, syscfgBuf, 0, 0, 0x100)
+		err = readNOR(&app.App, syscfgBuf, 0, 0, 0x100)
 		if err != nil {
 			fmt.Printf("Failed to read syscfg: %v\n", err)
 		} else {
@@ -366,7 +366,7 @@ var spewCmd = &cobra.Command{
 			fmt.Printf("\n%s\n", p.name)
 			fmt.Printf("%s\n", strings.Repeat("-", len(p.name)))
 			for _, reg := range p.registers {
-				data, err := readFrom(app, reg.address)
+				data, err := readFrom(&app.App, reg.address)
 				fmt.Printf("  %s: ", reg.name)
 				if err != nil {
 					fmt.Printf("error: %v\n", err)
@@ -390,7 +390,7 @@ var spewCmd = &cobra.Command{
 		// periphs are always at the same addrs?
 		for i := 0; i < 16; i++ {
 			addr := 0x3cf0_0000 + i*0x20
-			data, err := readFrom(app, uint32(addr))
+			data, err := readFrom(&app.App, uint32(addr))
 			if err != nil {
 				return fmt.Errorf("could not read GPIO %d: %w", i, err)
 			}

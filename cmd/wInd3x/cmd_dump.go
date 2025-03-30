@@ -8,7 +8,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/exploit/dumpmem"
 )
 
@@ -18,7 +17,7 @@ var dumpCmd = &cobra.Command{
 	Long:  "Read memory from a connected device and write results to a file. Not very fast.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
 	"github.com/freemyipod/wInd3x/pkg/image"
@@ -20,7 +19,7 @@ var runCmd = &cobra.Command{
 	Long:  "Run a DFU image (signed/encrypted or unsigned) on a connected device, starting haxed dfu mode first if necessary.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}

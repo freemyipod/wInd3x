@@ -46,7 +46,7 @@ var nandReadCmd = &cobra.Command{
 	Long:  "Read a 0x60000 'bank' (maybe?) of NAND. Slowly. Bank 0 contains the bootloader.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -87,7 +87,7 @@ var nandReadCmd = &cobra.Command{
 		for p := uint32(0); p < 0x100; p += 1 {
 			glog.Infof("%.2f%%...", float32(p)*100/0x100)
 			for offs := uint32(0); offs < 0x600; offs += 0x40 {
-				data, err := nandReadPageOffset(app, bank, p, offs)
+				data, err := nandReadPageOffset(&app.App, bank, p, offs)
 				if err != nil {
 					return err
 				}

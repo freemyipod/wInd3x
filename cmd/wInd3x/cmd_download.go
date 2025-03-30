@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/cache"
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -24,7 +23,7 @@ var downloadCmd = &cobra.Command{
 	Short: "Download update files from Apple's CDN",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -40,7 +39,7 @@ var downloadCmd = &cobra.Command{
 			return fmt.Errorf("invalid kind, must be one of: %s", strings.Join(opts, ", "))
 		}
 
-		by, err := cache.Get(app, kind)
+		by, err := cache.Get(&app.App, kind)
 		if err != nil {
 			return err
 		}

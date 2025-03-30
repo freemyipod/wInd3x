@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
 	"github.com/freemyipod/wInd3x/pkg/image"
 	"github.com/golang/glog"
@@ -29,7 +28,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("could not read image: %w", err)
 		}
 
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -39,7 +38,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("image is for %s, but %s is connected", img.DeviceKind, app.Desc.Kind)
 		}
 
-		res, err := decrypt.Decrypt(app, img.Body, decryptRecovery)
+		res, err := decrypt.Decrypt(&app.App, img.Body, decryptRecovery)
 		if err != nil {
 			return err
 		}

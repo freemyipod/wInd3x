@@ -8,8 +8,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/golang/glog"
-	"github.com/google/gousb"
 )
 
 type Request uint8
@@ -87,7 +87,7 @@ func (d State) String() string {
 	return "UNKNOWN"
 }
 
-func GetState(usb *gousb.Device) (State, error) {
+func GetState(usb devices.Usb) (State, error) {
 	buf := make([]byte, 1)
 	res, err := usb.Control(0xa1, uint8(RequestGetState), 0, 0, buf)
 	if err != nil {
@@ -105,7 +105,7 @@ type Status struct {
 	Timeout time.Duration
 }
 
-func GetStatus(usb *gousb.Device) (*Status, error) {
+func GetStatus(usb devices.Usb) (*Status, error) {
 	buf := make([]byte, 6)
 	res, err := usb.Control(0xa1, uint8(RequestGetStatus), 0, 0, buf)
 	if err != nil {
@@ -123,7 +123,7 @@ func GetStatus(usb *gousb.Device) (*Status, error) {
 	}, nil
 }
 
-func ClearStatus(usb *gousb.Device) error {
+func ClearStatus(usb devices.Usb) error {
 	_, err := usb.Control(0x21, uint8(RequestClrStatus), 0, 0, nil)
 	if err != nil {
 		return fmt.Errorf("control: %w", err)
@@ -131,7 +131,7 @@ func ClearStatus(usb *gousb.Device) error {
 	return nil
 }
 
-func ReceiveChunk(usb *gousb.Device, l int, blockno uint16) ([]byte, error) {
+func ReceiveChunk(usb devices.Usb, l int, blockno uint16) ([]byte, error) {
 	buf := make([]byte, l)
 	_, err := usb.Control(0xa1, uint8(RequestUpload), blockno, 0, buf)
 	if err != nil {
@@ -140,7 +140,7 @@ func ReceiveChunk(usb *gousb.Device, l int, blockno uint16) ([]byte, error) {
 	return buf, nil
 }
 
-func SendChunk(usb *gousb.Device, c []byte, blockno uint16) error {
+func SendChunk(usb devices.Usb, c []byte, blockno uint16) error {
 	_, err := usb.Control(0x21, uint8(RequestDnload), blockno, 0, c)
 	if err != nil {
 		return fmt.Errorf("control: %w", err)
@@ -148,21 +148,12 @@ func SendChunk(usb *gousb.Device, c []byte, blockno uint16) error {
 	return nil
 }
 
-type ProtoVersion int
-
-const (
-	// ProtoVersion1 is implemented by Nano3G.
-	ProtoVersion1 ProtoVersion = 1
-	// ProtoVersion2 is implemented by Nano4G+.
-	ProtoVersion2 ProtoVersion = 2
-)
-
-func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
+func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error {
 	if err := Clean(usb); err != nil {
 		return fmt.Errorf("clean: %w", err)
 	}
 
-	if version == ProtoVersion1 {
+	if version == devices.DFUProtoVersion1 {
 		crc := bytes.NewBuffer(nil)
 		binary.Write(crc, binary.LittleEndian, crc32.ChecksumIEEE(i))
 		for _, b := range crc.Bytes() {
@@ -223,7 +214,7 @@ func SendImage(usb *gousb.Device, i []byte, version ProtoVersion) error {
 	return fmt.Errorf("did not reach manifest")
 }
 
-func Clean(usb *gousb.Device) error {
+func Clean(usb devices.Usb) error {
 	if err := ClearStatus(usb); err != nil {
 		return fmt.Errorf("ClrStatus: %w", err)
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
-	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/cache"
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
@@ -27,7 +26,7 @@ var restoreCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		app, err := app.NewAny()
+		app, err := newAny()
 		if err != nil {
 			return err
 		}
@@ -54,7 +53,7 @@ var restoreCmd = &cobra.Command{
 			}
 		}
 
-		firmware, err := cache.Get(app, cache.PayloadKindFirmwareUpstream)
+		firmware, err := cache.Get(&app.App, cache.PayloadKindFirmwareUpstream)
 		if err != nil {
 			return fmt.Errorf("could not get firmware: %w", err)
 		}
@@ -69,7 +68,7 @@ var restoreCmd = &cobra.Command{
 
 		var bootloader []byte
 		if hasBootloader {
-			bootloader, err = cache.Get(app, cache.PayloadKindBootloaderUpstream)
+			bootloader, err = cache.Get(&app.App, cache.PayloadKindBootloaderUpstream)
 			if err != nil {
 				return fmt.Errorf("could not get bootloader: %s", err)
 			}
@@ -79,7 +78,7 @@ var restoreCmd = &cobra.Command{
 			glog.Infof("Found %s in %s", app.Desc.Kind, app.InterfaceKind)
 			switch app.InterfaceKind {
 			case devices.DFU:
-				wtf, err := cache.Get(app, cache.PayloadKindWTFUpstream)
+				wtf, err := cache.Get(&app.App, cache.PayloadKindWTFUpstream)
 				if err != nil {
 					return fmt.Errorf("could not get wtf payload: %s", err)
 				}
@@ -89,12 +88,12 @@ var restoreCmd = &cobra.Command{
 				}
 				glog.Infof("Waiting 10s for device to switch to WTF mode...")
 				ctx, _ := context.WithTimeout(cmd.Context(), 10*time.Second)
-				if err := app.WaitSwitch(ctx, devices.WTF); err != nil {
+				if err := app.waitSwitch(ctx, devices.WTF); err != nil {
 					return fmt.Errorf("device did not switch to WTF mode: %w", err)
 				}
 				time.Sleep(time.Second)
 			case devices.WTF:
-				recovery, err := cache.Get(app, cache.PayloadKindRecoveryUpstream)
+				recovery, err := cache.Get(&app.App, cache.PayloadKindRecoveryUpstream)
 				if err != nil {
 					return fmt.Errorf("could not get recovery payload: %s", err)
 				}
@@ -113,14 +112,13 @@ var restoreCmd = &cobra.Command{
 				}
 				glog.Infof("Waiting 30s for device to switch to Recovery mode...")
 				ctx, _ := context.WithTimeout(cmd.Context(), 30*time.Second)
-				if err := app.WaitSwitch(ctx, devices.Disk); err != nil {
+				if err := app.waitSwitch(ctx, devices.Disk); err != nil {
 					return fmt.Errorf("device did not switch to Recovery mode: %w", err)
 				}
 				time.Sleep(time.Second)
 			case devices.Disk:
 				h := usbms.Host{
-					InEndpoint:  app.MSEndpoints.In,
-					OutEndpoint: app.MSEndpoints.Out,
+					Endpoints: app.MSEndpoints,
 				}
 				di, err := h.IPodDeviceInformation()
 				if err != nil {

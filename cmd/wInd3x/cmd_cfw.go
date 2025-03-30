@@ -14,6 +14,7 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/cache"
 	"github.com/freemyipod/wInd3x/pkg/cfw"
+	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/efi"
 	"github.com/freemyipod/wInd3x/pkg/exploit/haxeddfu"
@@ -113,18 +114,18 @@ var cfwSuperdiagsCmd = &cobra.Command{
 	Long:  "Run superdiags (diag with extra Nand driver). If your iPod has a connected DCSD cable, you'll be able to access a console over it.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
 		defer app.Close()
 
-		diags, err := superdiags(app)
+		diags, err := superdiags(&app.App)
 		if err != nil {
 			return err
 		}
 
-		wtf, err := cache.Get(app, cache.PayloadKindWTFDefanged)
+		wtf, err := cache.Get(&app.App, cache.PayloadKindWTFDefanged)
 		if err != nil {
 			return err
 		}
@@ -140,7 +141,7 @@ var cfwSuperdiagsCmd = &cobra.Command{
 		glog.Infof("Waiting 10s for device to switch to WTF mode...")
 		ctx, ctxC := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer ctxC()
-		if err := app.WaitWTF(ctx); err != nil {
+		if err := app.waitSwitch(ctx, devices.WTF); err != nil {
 			return fmt.Errorf("device did not switch to WTF mode: %w", err)
 		}
 		time.Sleep(time.Second)
@@ -172,7 +173,7 @@ var cfwRunCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		app, err := app.New()
+		app, err := newDFU()
 		if err != nil {
 			return err
 		}
@@ -183,7 +184,7 @@ var cfwRunCmd = &cobra.Command{
 			return err
 		}
 
-		wtf, err := cache.Get(app, cache.PayloadKindWTFDefanged)
+		wtf, err := cache.Get(&app.App, cache.PayloadKindWTFDefanged)
 		if err != nil {
 			return err
 		}
@@ -214,7 +215,7 @@ var cfwRunCmd = &cobra.Command{
 		glog.Infof("Waiting 10s for device to switch to WTF mode...")
 		ctx, ctxC := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer ctxC()
-		if err := app.WaitWTF(ctx); err != nil {
+		if err := app.waitSwitch(ctx, devices.WTF); err != nil {
 			return fmt.Errorf("device did not switch to WTF mode: %w", err)
 		}
 		time.Sleep(time.Second)
