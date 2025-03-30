@@ -29,12 +29,12 @@ func (a *App) PrepareUSB() error {
 	switch a.InterfaceKind {
 	case devices.DFU, devices.WTF:
 		if err := a.Usb.UseDefaultInterface(); err != nil {
-			return err
+			return fmt.Errorf("UseDefaultInterface: %w", err)
 		}
 	case devices.Disk:
 		ep, err := a.Usb.UseDiskInterface()
 		if err != nil {
-			return err
+			return fmt.Errorf("UseDiskInterface: %w", err)
 		}
 		a.MSEndpoints = ep
 	}
