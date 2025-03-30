@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log/slog"
 
 	"github.com/freemyipod/wInd3x/pkg/efi/compression"
-	"github.com/golang/glog"
 	"github.com/ulikunitz/xz/lzma"
 )
 
@@ -151,7 +151,7 @@ func (c *compressionSection) Serialize() ([]byte, error) {
 		return nil, err
 	}
 	c.extra.UncompressedLength = uint32(len(uncompressed))
-	compressed, err := compression.Compress(uncompressed)
+	compressed, err := compression.Compression.Compress(uncompressed)
 	if err != nil {
 		return nil, fmt.Errorf("compression failed: %w", err)
 	}
@@ -210,7 +210,7 @@ func (c *guidSection) Serialize() ([]byte, error) {
 			if err != nil {
 				return nil, fmt.Errorf("could not open LZMA section: %w", err)
 			}
-			glog.V(2).Infof("  LZMA compressing %x bytes", len(data))
+			slog.Debug("  LZMA compressing", "len", len(data))
 			if _, err := w.Write(data); err != nil {
 				return nil, fmt.Errorf("could not compress LZMA section: %w", err)
 			}
@@ -329,7 +329,7 @@ func readSection(r *NestedReader) (Section, error) {
 	if err := binary.Read(r, binary.LittleEndian, &header); err != nil {
 		return nil, err
 	}
-	glog.V(1).Infof("Section header @%08x: %+v", start, header)
+	slog.Debug("Section header", "start", start, "header", header)
 	switch header.Type {
 	case SectionTypeCompression:
 		var res compressionSection
@@ -344,13 +344,13 @@ func readSection(r *NestedReader) (Section, error) {
 		if res.extra.CompressionType != 1 {
 			return nil, fmt.Errorf("unsupported compression type %d", res.extra.CompressionType)
 		}
-		decompressed, err := compression.Decompress(data)
+		decompressed, err := compression.Compression.Decompress(data)
 		if err != nil {
 			return nil, fmt.Errorf("decompression failed: %w", err)
 		}
-		t, err := compression.Compress(decompressed)
+		t, err := compression.Compression.Compress(decompressed)
 		if err != nil || len(t) != len(data) {
-			glog.Warningf("Loopback compression failed: %d -> %d", len(data), len(t))
+			slog.Error("Loopback compression failed", "first", len(data), "second", len(t))
 		}
 		decompressed = decompressed[:res.extra.UncompressedLength]
 		//fmt.Println(hex.Dump(decompressed))
@@ -366,14 +366,14 @@ func readSection(r *NestedReader) (Section, error) {
 		if err := binary.Read(r, binary.LittleEndian, &res.extra); err != nil {
 			return nil, err
 		}
-		glog.V(2).Infof(" guid: %s, doffs: %x attrs: %x", res.extra.SectionDefinitionGUID.String(), res.extra.DataOffset, res.extra.Attributes)
+		slog.Debug("guiddefined", "guid", res.extra.SectionDefinitionGUID.String(), "doffs", res.extra.DataOffset, "attrs", res.extra.Attributes)
 		customLength := int(res.extra.DataOffset - (4 + 20))
-		glog.V(2).Infof(" custom len: %x", customLength)
+		slog.Debug("guiddefined", "customlen", customLength)
 		custom := make([]byte, customLength)
 		r.Read(custom)
 		res.custom = custom
 		if customLength != 0 {
-			glog.V(2).Infof(" custom: %q", hex.EncodeToString(res.custom))
+			slog.Debug("guiddefined", " custom", hex.EncodeToString(res.custom))
 		}
 
 		dataLength := int(header.Size.Uint32()-(4+20)) - customLength
@@ -381,11 +381,11 @@ func readSection(r *NestedReader) (Section, error) {
 		r.Advance(dataLength)
 
 		if (res.extra.Attributes & 1) != 0 {
-			glog.V(2).Infof(" needs processing")
+			slog.Debug(" needs processing")
 			switch res.extra.SectionDefinitionGUID.String() {
 			case "ee4e5898-3914-4259-9d6e-dc7bd79403cf":
 				// LZMA compressed
-				glog.V(2).Infof("  LZMA compressed")
+				slog.Debug("  LZMA compressed")
 				data, _ := io.ReadAll(dataSub)
 				l, err := lzma.NewReader(bytes.NewBuffer(data))
 				if err != nil {
@@ -417,7 +417,7 @@ func readSection(r *NestedReader) (Section, error) {
 			data:                data,
 		}, nil
 	case SectionTypeFirmwareVolumeImage:
-		glog.V(2).Infof(" nested firmware image volume")
+		slog.Debug(" nested firmware image volume")
 		sub := r.Sub(0, int(header.Size.Uint32()))
 		r.Advance(sub.Len())
 		vol, err := ReadVolume(sub)

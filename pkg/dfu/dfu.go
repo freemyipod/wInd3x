@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
-	"github.com/golang/glog"
 )
 
 type Request uint8
@@ -206,7 +206,7 @@ func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error
 			continue
 		}
 		if st.State == StateManifest {
-			glog.Infof("Got dfuMANIFEST, image uploaded.")
+			slog.Info("Got dfuMANIFEST, image uploaded.")
 			return nil
 		}
 	}

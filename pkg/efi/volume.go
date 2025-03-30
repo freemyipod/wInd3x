@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/golang/glog"
+	"golang.org/x/exp/slog"
 )
 
 // FirmwareVolumeHeader as per EFI spec.
@@ -79,7 +79,7 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	for i := 0; i < int(bmapCount); i++ {
 		var entry blockmap
 		if err := binary.Read(r, binary.LittleEndian, &entry); err != nil {
-			glog.Exit(err)
+			return nil, fmt.Errorf("volume read failed: %w", err)
 		}
 		bmap = append(bmap, entry)
 	}
@@ -92,15 +92,15 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 		return nil, fmt.Errorf("unsupported count of blockmaps (%d, wanted 2)", len(bmap))
 	}
 
-	glog.V(1).Infof("Blockmap: %+v", bmap)
+	slog.Debug("Blockmap", "bmap", bmap)
 
 	dataSize := bmap[0].BlockCount * bmap[0].BlockSize
 
-	glog.V(1).Infof(" reader size: %x", r.Len()+r.pos)
-	glog.V(1).Infof(" length: %x", header.Length)
-	glog.V(1).Infof(" block count size: %x", dataSize)
+	slog.Debug("reader", "size", r.Len()+r.pos)
+	slog.Debug("reader", "length", header.Length)
+	slog.Debug("reader", "block_count_size", dataSize)
 	restSize := (r.Len() + r.pos) - int(dataSize)
-	glog.V(1).Infof(" rest size: %x", restSize)
+	slog.Debug("reader", "rest_size", restSize)
 
 	var files []*FirmwareFile
 	for r.Len() != 0 {
@@ -113,10 +113,10 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 		}
 		files = append(files, file)
 	}
-	glog.V(1).Infof("%d files, %x bytes left", len(files), r.Len())
+	slog.Debug("reading done", "files", len(files), "left", r.Len())
 
 	paddingLen := r.Len() - restSize
-	glog.V(1).Infof("padding len: 0x%x", paddingLen)
+	slog.Debug("padding", "len", paddingLen)
 	padding := make([]byte, paddingLen)
 	r.Read(padding)
 	if !bytes.Equal(padding, bytes.Repeat([]byte{0xff}, paddingLen)) {
@@ -127,8 +127,8 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading rest failed: %v", err)
 	}
-	glog.V(1).Infof("rest len: 0x%x", len(rest))
-	glog.V(1).Infof("rest:\n%s", hex.Dump(rest))
+	slog.Debug("rest", "len", len(rest))
+	slog.Debug("rest", "data", hex.Dump(rest))
 
 	return &Volume{
 		FirmwareVolumeHeader: header,

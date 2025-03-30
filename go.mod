@@ -1,6 +1,8 @@
 module github.com/freemyipod/wInd3x
 
-go 1.18
+go 1.23.0
+
+toolchain go1.23.3
 
 require (
 	github.com/adrg/xdg v0.4.0
@@ -11,6 +13,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/tetratelabs/wazero v1.0.0-pre.1
 	github.com/ulikunitz/xz v0.5.12
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	howett.net/plist v1.0.0
 )
 

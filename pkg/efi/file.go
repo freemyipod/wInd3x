@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-
-	"github.com/golang/glog"
+	"log/slog"
 )
 
 // FirmwareFileHeader as per EFI standard.
@@ -115,7 +114,7 @@ func readFile(r *NestedReader) (*FirmwareFile, error) {
 		return nil, nil
 	}
 
-	glog.V(1).Infof("File header @%08x: %+v", start, header)
+	slog.Debug("File header", "start", start, "header", header)
 	size := header.Size.Uint32()
 	dataSub := r.Sub(0, int(size-0x18))
 	r.Advance(int(size - 0x18))

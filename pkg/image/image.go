@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
-	"github.com/golang/glog"
 )
 
 const (
@@ -144,7 +144,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("could not seek past header")
 	}
 
-	glog.Infof("Parsed %s image.", kind)
+	slog.Info("Parsed image.", "kind", kind)
 
 	body := make([]byte, hdr.BodyLength)
 	if _, err := r.Read(body); err != nil {

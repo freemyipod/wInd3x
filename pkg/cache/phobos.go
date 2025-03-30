@@ -3,12 +3,12 @@ package cache
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 
-	"github.com/golang/glog"
 	"howett.net/plist"
 
 	"github.com/freemyipod/wInd3x/pkg/devices"
@@ -79,7 +79,7 @@ func getJingle() (*jingle, error) {
 		bytes, _ = os.ReadFile(fspath)
 	}
 	if bytes == nil {
-		glog.Infof("Downloading iTunes XML...")
+		slog.Info("Downloading iTunes XML...")
 		resp, err := http.Get(jingleURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not download iTunes XML: %w", err)
@@ -91,10 +91,10 @@ func getJingle() (*jingle, error) {
 
 		os.MkdirAll(filepath.Dir(fspath), 0755)
 		if err := os.WriteFile(fspath, bytes, 0644); err != nil {
-			glog.Errorf("Could not save iTunes XML cache: %v", err)
+			slog.Error("Could not save iTunes XML cache", "err", err)
 		}
 	} else {
-		glog.Infof("Using iTunes XML cache at %s", fspath)
+		slog.Info("Using iTunes XML cache", "path", fspath)
 	}
 
 	var res jingle

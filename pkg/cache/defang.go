@@ -3,12 +3,12 @@ package cache
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 
 	"github.com/freemyipod/wInd3x/pkg/cfw"
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/efi"
 	"github.com/freemyipod/wInd3x/pkg/image"
-	"github.com/golang/glog"
 )
 
 // defanger takes a decrypted WTF and returns it with security checks disabled.
@@ -17,7 +17,7 @@ type defanger func(decrypted []byte) ([]byte, error)
 var wtfDefangers = map[devices.Kind]defanger{
 	devices.Nano3: defangRaw(map[int][]byte{
 		// replace bytes at addresses in the WTF binary:
-		0x1990: []byte{0x00, 0x70, 0xA0, 0xE3, 0x22, 0x00, 0x00, 0xEA}, // skip signature check
+		0x1990: []byte{0x00, 0x70, 0xA0, 0xE3, 0x22, 0x00, 0x00, 0xEA},                      // skip signature check
 		0x770C: []byte("D\x00e\x00f\x00a\x00n\x00g\x00e\x00d\x00 \x00W\x00T\x00F\x00!\x00"), // change USB product string to show it's defanged
 	}),
 	devices.Nano5: defangEFI(cfw.MultipleVisitors([]cfw.VolumeVisitor{
@@ -146,18 +146,18 @@ func ApplyPatches(img *image.IMG1, patches cfw.VolumeVisitor) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate original secore offset: %w", err)
 	}
-	glog.Infof("Initial pre-padding size: %d", origSize)
+	slog.Info("Initial pre-padding", "size", origSize)
 
-	glog.Infof("Applying patches...")
+	slog.Info("Applying patches...")
 	if err := cfw.VisitVolume(fv, patches); err != nil {
 		return nil, fmt.Errorf("failed to apply patches: %w", err)
 	}
 
-	glog.Infof("Fixing up padding...")
+	slog.Info("Fixing up padding...")
 	if err := cfw.SecoreFixup(origSize, fv); err != nil {
 		return nil, fmt.Errorf("failed to fix up size: %w", err)
 	}
-	glog.Infof("Done.")
+	slog.Info("Done.")
 
 	fvb, err := fv.Serialize()
 	if err != nil {

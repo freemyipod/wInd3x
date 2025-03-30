@@ -2,8 +2,7 @@ package cfw
 
 import (
 	"fmt"
-
-	"github.com/golang/glog"
+	"log/slog"
 
 	"github.com/freemyipod/wInd3x/pkg/efi"
 )
@@ -54,7 +53,7 @@ func SecoreFixup(origPos int, fv *efi.Volume) error {
 		return err
 	}
 	needed := origPos - startPos
-	glog.Infof("Pre-padding after patches: %d (need %d fixup)", startPos, needed)
+	slog.Info("Pre-padding after patches", "startPos", startPos, "needed", needed)
 
 	if needed == 0 {
 		return nil
@@ -66,7 +65,7 @@ func SecoreFixup(origPos int, fv *efi.Volume) error {
 	if needed < 0 {
 		reduce := -needed
 		if psize < reduce {
-			return fmt.Errorf("Padding too small: need %d, got %d bytes", reduce, psize)
+			return fmt.Errorf("Padding too small", "need", reduce, "got", psize)
 		}
 		psize -= reduce
 	} else {

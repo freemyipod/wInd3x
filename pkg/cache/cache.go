@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -15,7 +16,6 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
-	"github.com/golang/glog"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/devices"
@@ -50,7 +50,7 @@ const (
 )
 
 func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error {
-	glog.Infof("Downloading %s IPSW from %s...", pk, url)
+	slog.Info("Downloading IPSW...", "kind", pk, "url", url)
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("could not download IPSW: %w", err)
@@ -244,7 +244,7 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 
 	fspath := pathFor(&app.Desc.Kind, payload, url)
 	if _, err := os.Stat(fspath); err == nil {
-		glog.Infof("Using %s %s at %s", app.Desc.Kind, payload, fspath)
+		slog.Info("Using cached data", "kind", app.Desc.Kind, "payload", payload, "path", fspath)
 		return os.ReadFile(fspath)
 	}
 
