@@ -25,12 +25,15 @@ dist/components.js: $(wildcard src/*.ts) check node_modules
 	esbuild --bundle --minify --sourcemap --target=es2020 src/components.ts > $@
 
 dist/index.html: index.html
+	@mkdir -p dist
 	cp $< $@
 
 dist/edk2.wasm: ../pkg/efi/compression/edk2.wasm
+	@mkdir -p dist
 	cp $< $@
 
 dist/favicon.png: favicon.png
+	@mkdir -p dist
 	cp $< $@
 
 dist: dist/wiwali.wasm dist/wasm_exec.js dist/components.js dist/index.html dist/edk2.wasm dist/favicon.png
