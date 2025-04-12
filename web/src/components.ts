@@ -51,7 +51,7 @@ export class Disclaimer extends LitElement {
             <div class="attention">
                 <h4>Warranty Disclaimer</h4>
                 <p>
-                    Nugget.zone is <b>experimental software</b> with <b>absolutely no warranty given</b>. While iPods are quite resiliant to bricking, they are not fully immunite to it. No bricking has been reported as result of using this software, but that doesn't mean it can't happen - you have been warned.
+                    Nugget.zone is <b>experimental software</b> with <b>absolutely no warranty given</b>. While iPods are quite resiliant to bricking, they are not fully immune to it. No bricking has been reported as result of using this software, but that doesn't mean it can't happen - you have been warned.
                 </p>
                 <p>
                     THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
