@@ -1,5 +1,4 @@
 //go:build !wasm
-// +build !wasm
 
 // package compression implements EFI compression/decompression routines by
 // calling out into edk2 Tiano{Dec,C}ompres functions compiled into
