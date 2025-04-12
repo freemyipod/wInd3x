@@ -65,6 +65,8 @@ func (h *hostPathStore) Exists(p string) (bool, error) {
 	return false, err
 }
 
+var ReverseProxy *url.URL
+
 type PayloadKind string
 
 const (
@@ -97,9 +99,10 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string) er
 	if err != nil {
 		return fmt.Errorf("could not parse URL %q: %w", urlStr, err)
 	}
-	//u.Host = "127.0.0.1:8000"
-	//u.Scheme = "http"
-	//slog.Info("HACK FOR WEB: rewrote URL", "url", u.String())
+	if ReverseProxy != nil {
+		u.Host = ReverseProxy.Host
+		u.Scheme = ReverseProxy.Scheme
+	}
 
 	resp, err := http.Get(u.String())
 	if err != nil {
