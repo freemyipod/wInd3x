@@ -1,0 +1,4 @@
+dist
+check.log
+node_modules
+server.elf

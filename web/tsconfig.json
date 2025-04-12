@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "lib": ["es2020", "dom"],
+        "strict": true,
+        "experimentalDecorators": true,
+        "useDefineForClassFields": false,
+    }
+}
