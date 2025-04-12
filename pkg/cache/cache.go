@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,6 +24,46 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/image"
 	"github.com/freemyipod/wInd3x/pkg/mse"
 )
+
+type FS interface {
+	ReadFile(path string) ([]byte, error)
+	WriteFile(path string, data []byte) error
+	Remove(path string) error
+	Exists(path string) (bool, error)
+}
+
+type hostPathStore struct {
+	root string
+}
+
+var Store FS = &hostPathStore{path.Join(xdg.DataHome, "wInd3x")}
+
+func (h *hostPathStore) ReadFile(p string) ([]byte, error) {
+	return os.ReadFile(path.Join(h.root, p))
+}
+
+func (h *hostPathStore) WriteFile(p string, data []byte) error {
+	p = path.Join(h.root, p)
+	parent := filepath.Dir(p)
+	os.MkdirAll(parent, 0755)
+
+	return os.WriteFile(p, data, 0644)
+}
+
+func (h *hostPathStore) Remove(p string) error {
+	return os.Remove(path.Join(h.root, p))
+}
+
+func (h *hostPathStore) Exists(p string) (bool, error) {
+	_, err := os.Stat(path.Join(h.root, p))
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
 
 type PayloadKind string
 
@@ -49,9 +90,18 @@ const (
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
 
-func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error {
-	slog.Info("Downloading IPSW...", "kind", pk, "url", url)
-	resp, err := http.Get(url)
+func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string) error {
+	slog.Info("Downloading IPSW...", "kind", pk, "url", urlStr)
+
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Errorf("could not parse URL %q: %w", urlStr, err)
+	}
+	//u.Host = "127.0.0.1:8000"
+	//u.Scheme = "http"
+	//slog.Info("HACK FOR WEB: rewrote URL", "url", u.String())
+
+	resp, err := http.Get(u.String())
 	if err != nil {
 		return fmt.Errorf("could not download IPSW: %w", err)
 	}
@@ -115,9 +165,8 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, url string) error
 		data = mf.Data
 	}
 
-	fspath := pathFor(&dk, pk, url)
-	os.MkdirAll(filepath.Dir(fspath), 0755)
-	if err := os.WriteFile(fspath, data, 0644); err != nil {
+	fspath := pathFor(&dk, pk, urlStr)
+	if err := Store.WriteFile(fspath, data); err != nil {
 		return fmt.Errorf("could not write: %w", err)
 	}
 	return nil
@@ -145,11 +194,10 @@ func getBootloaderDecrypted(app *app.App) error {
 	}
 
 	fspath := pathFor(&app.Desc.Kind, PayloadKindBootloaderDecrypted, "")
-	os.MkdirAll(filepath.Dir(fspath), 0755)
-	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
+	if err := Store.WriteFile(fspath, wrapper); err != nil {
 		return fmt.Errorf("could not write bootloader: %w", err)
 	}
-	os.Remove(recovery)
+	Store.Remove(recovery)
 	return nil
 }
 
@@ -175,11 +223,10 @@ func getWTFDecrypted(app *app.App) error {
 	}
 
 	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDecrypted, "")
-	os.MkdirAll(filepath.Dir(fspath), 0755)
-	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
+	if err := Store.WriteFile(fspath, wrapper); err != nil {
 		return fmt.Errorf("could not write WTF: %w", err)
 	}
-	os.Remove(recovery)
+	Store.Remove(recovery)
 	return nil
 }
 
@@ -205,11 +252,10 @@ func getDiagsDecrypted(app *app.App) error {
 	}
 
 	fspath := pathFor(&app.Desc.Kind, PayloadKindDiagsDecrypted, "")
-	os.MkdirAll(filepath.Dir(fspath), 0755)
-	if err := os.WriteFile(fspath, wrapper, 0644); err != nil {
+	if err := Store.WriteFile(fspath, wrapper); err != nil {
 		return fmt.Errorf("could not write diag: %w", err)
 	}
-	os.Remove(recovery)
+	Store.Remove(recovery)
 	return nil
 }
 
@@ -229,8 +275,7 @@ func getWTFDefanged(app *app.App) error {
 	}
 
 	fspath := pathFor(&app.Desc.Kind, PayloadKindWTFDefanged, "")
-	os.MkdirAll(filepath.Dir(fspath), 0755)
-	if err := os.WriteFile(fspath, defanged, 0644); err != nil {
+	if err := Store.WriteFile(fspath, defanged); err != nil {
 		return fmt.Errorf("could not write WTF: %w", err)
 	}
 	return nil
@@ -243,9 +288,9 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 	}
 
 	fspath := pathFor(&app.Desc.Kind, payload, url)
-	if _, err := os.Stat(fspath); err == nil {
+	if exists, err := Store.Exists(fspath); err == nil && exists {
 		slog.Info("Using cached data", "kind", app.Desc.Kind, "payload", payload, "path", fspath)
-		return os.ReadFile(fspath)
+		return Store.ReadFile(fspath)
 	}
 
 	switch payload {
@@ -266,7 +311,7 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 		return nil, err
 	}
 
-	return os.ReadFile(fspath)
+	return Store.ReadFile(fspath)
 }
 
 func pathFor(dev *devices.Kind, payload PayloadKind, upstreamURL string) string {
@@ -281,8 +326,6 @@ func pathFor(dev *devices.Kind, payload PayloadKind, upstreamURL string) string 
 		marker = "-" + hex.EncodeToString(s.Sum(nil))
 	}
 	parts := []string{
-		xdg.DataHome,
-		"wInd3x",
 		fmt.Sprintf("%s-%s%s.bin", devpart, payload, marker),
 	}
 	return path.Join(parts...)

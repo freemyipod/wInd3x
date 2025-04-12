@@ -5,8 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sort"
 
 	"howett.net/plist"
@@ -75,8 +73,8 @@ var FirmwareVersionOverrides map[devices.Kind]string
 func getJingle() (*jingle, error) {
 	fspath := pathFor(nil, PayloadKindJingleXML, "")
 	var bytes []byte
-	if _, err := os.Stat(fspath); err == nil {
-		bytes, _ = os.ReadFile(fspath)
+	if _, err := Store.Exists(fspath); err == nil {
+		bytes, _ = Store.ReadFile(fspath)
 	}
 	if bytes == nil {
 		slog.Info("Downloading iTunes XML...")
@@ -89,8 +87,7 @@ func getJingle() (*jingle, error) {
 			return nil, fmt.Errorf("could not download iTunes XML: %w", err)
 		}
 
-		os.MkdirAll(filepath.Dir(fspath), 0755)
-		if err := os.WriteFile(fspath, bytes, 0644); err != nil {
+		if err := Store.WriteFile(fspath, bytes); err != nil {
 			slog.Error("Could not save iTunes XML cache", "err", err)
 		}
 	} else {
