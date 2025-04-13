@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
@@ -83,7 +84,10 @@ const (
 	PayloadKindBootloaderDecrypted      PayloadKind = "bootloader-decrypted"
 	PayloadKindBootloaderDecryptedCache PayloadKind = "bootloader-decrypted-cache"
 
-	PayloadKindRetailOSUpstream PayloadKind = "retailos-upstream"
+	PayloadKindRetailOSUpstream       PayloadKind = "retailos-upstream"
+	PayloadKindRetailOSDecrypted      PayloadKind = "retailos-decrypted"
+	PayloadKindRetailOSCustomized     PayloadKind = "retailos-customized"
+	PayloadKindRetailOSDecryptedCache PayloadKind = "retailos-decrypted-cache"
 
 	PayloadKindDiagsUpstream       PayloadKind = "diags-upstream"
 	PayloadKindDiagsDecrypted      PayloadKind = "diags-decrypted"
@@ -92,7 +96,34 @@ const (
 	PayloadKindJingleXML PayloadKind = "jinglexml"
 )
 
-func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string) error {
+type GetOption struct {
+	Progress func(float32)
+}
+
+type downloadMonitor struct {
+	done         uint
+	total        uint
+	prevCallback float32
+	callback     func(float32)
+}
+
+func (d *downloadMonitor) Write(data []byte) (int, error) {
+	d.done += uint(len(data))
+	percent := float32(d.done) / float32(d.total)
+	if percent != d.prevCallback && d.callback != nil {
+		d.callback(percent)
+		d.prevCallback = percent
+	}
+	return len(data), nil
+}
+
+func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string, options ...GetOption) error {
+	var progress func(float32) = nil
+	for _, option := range options {
+		if option.Progress != nil {
+			progress = option.Progress
+		}
+	}
 	slog.Info("Downloading IPSW...", "kind", pk, "url", urlStr)
 
 	u, err := url.Parse(urlStr)
@@ -108,7 +139,12 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string) er
 	if err != nil {
 		return fmt.Errorf("could not download IPSW: %w", err)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+
+	dlMonitor := &downloadMonitor{
+		total:    uint(resp.ContentLength),
+		callback: progress,
+	}
+	body, err := io.ReadAll(io.TeeReader(resp.Body, dlMonitor))
 	if err != nil {
 		return fmt.Errorf("could not download IPSW: %w", err)
 	}
@@ -175,7 +211,14 @@ func getPayloadFromPhobosIPSW(pk PayloadKind, dk devices.Kind, urlStr string) er
 	return nil
 }
 
-func getBootloaderDecrypted(app *app.App) error {
+func getBootloaderDecrypted(app *app.App, options ...GetOption) error {
+	var progress func(float32) = nil
+	for _, option := range options {
+		if option.Progress != nil {
+			progress = option.Progress
+		}
+	}
+
 	encrypted, err := Get(app, PayloadKindBootloaderUpstream)
 	if err != nil {
 		return err
@@ -186,7 +229,12 @@ func getBootloaderDecrypted(app *app.App) error {
 	}
 
 	recovery := pathFor(&app.Desc.Kind, PayloadKindBootloaderDecryptedCache, "")
-	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
+
+	var decryptOptions []decrypt.Option
+	if progress != nil {
+		decryptOptions = append(decryptOptions, decrypt.Option{Progress: progress})
+	}
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery, decryptOptions...)
 	if err != nil {
 		return fmt.Errorf("could not decrypt bootloader: %w", err)
 	}
@@ -204,7 +252,14 @@ func getBootloaderDecrypted(app *app.App) error {
 	return nil
 }
 
-func getWTFDecrypted(app *app.App) error {
+func getWTFDecrypted(app *app.App, options ...GetOption) error {
+	var progress func(float32) = nil
+	for _, option := range options {
+		if option.Progress != nil {
+			progress = option.Progress
+		}
+	}
+
 	encrypted, err := Get(app, PayloadKindWTFUpstream)
 	if err != nil {
 		return err
@@ -215,7 +270,12 @@ func getWTFDecrypted(app *app.App) error {
 	}
 
 	recovery := pathFor(&app.Desc.Kind, PayloadKindWTFDecryptedCache, "")
-	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
+
+	var decryptOptions []decrypt.Option
+	if progress != nil {
+		decryptOptions = append(decryptOptions, decrypt.Option{Progress: progress})
+	}
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery, decryptOptions...)
 	if err != nil {
 		return fmt.Errorf("could not decrypt WTF: %w", err)
 	}
@@ -233,7 +293,55 @@ func getWTFDecrypted(app *app.App) error {
 	return nil
 }
 
-func getDiagsDecrypted(app *app.App) error {
+func getRetailOSDecrypted(app *app.App, options ...GetOption) error {
+	var progress func(float32) = nil
+	for _, option := range options {
+		if option.Progress != nil {
+			progress = option.Progress
+		}
+	}
+
+	encrypted, err := Get(app, PayloadKindRetailOSUpstream)
+	if err != nil {
+		return err
+	}
+	img1, err := image.Read(bytes.NewReader(encrypted))
+	if err != nil {
+		return fmt.Errorf("could not parse RetailOS IMG1: %w", err)
+	}
+
+	recovery := pathFor(&app.Desc.Kind, PayloadKindRetailOSDecryptedCache, "")
+
+	var decryptOptions []decrypt.Option
+	if progress != nil {
+		decryptOptions = append(decryptOptions, decrypt.Option{Progress: progress})
+	}
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery, decryptOptions...)
+	if err != nil {
+		return fmt.Errorf("could not decrypt RetailOS: %w", err)
+	}
+
+	wrapper, err := image.MakeUnsigned(app.Desc.Kind, img1.Header.Entrypoint, decrypted)
+	if err != nil {
+		return fmt.Errorf("could not re-pack decrypted RetailOS: %w", err)
+	}
+
+	fspath := pathFor(&app.Desc.Kind, PayloadKindRetailOSDecrypted, "")
+	if err := Store.WriteFile(fspath, wrapper); err != nil {
+		return fmt.Errorf("could not write RetailOS: %w", err)
+	}
+	Store.Remove(recovery)
+	return nil
+}
+
+func getDiagsDecrypted(app *app.App, options ...GetOption) error {
+	var progress func(float32) = nil
+	for _, option := range options {
+		if option.Progress != nil {
+			progress = option.Progress
+		}
+	}
+
 	encrypted, err := Get(app, PayloadKindDiagsUpstream)
 	if err != nil {
 		return err
@@ -244,7 +352,12 @@ func getDiagsDecrypted(app *app.App) error {
 	}
 
 	recovery := pathFor(&app.Desc.Kind, PayloadKindDiagsDecryptedCache, "")
-	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery)
+
+	var decryptOptions []decrypt.Option
+	if progress != nil {
+		decryptOptions = append(decryptOptions, decrypt.Option{Progress: progress})
+	}
+	decrypted, err := decrypt.Decrypt(app, img1.Body, recovery, decryptOptions...)
 	if err != nil {
 		return fmt.Errorf("could not decrypt diag: %w", err)
 	}
@@ -262,7 +375,7 @@ func getDiagsDecrypted(app *app.App) error {
 	return nil
 }
 
-func getWTFDefanged(app *app.App) error {
+func getWTFDefanged(app *app.App, options ...GetOption) error {
 	defanger, ok := wtfDefangers[app.Desc.Kind]
 	if !ok {
 		return fmt.Errorf("don't know how to defang a %s", app.Desc.Kind)
@@ -284,7 +397,21 @@ func getWTFDefanged(app *app.App) error {
 	return nil
 }
 
-func Get(app *app.App, payload PayloadKind) ([]byte, error) {
+func getRetailOSCustomized(app *app.App, options ...GetOption) ([]byte, error) {
+	decrypted, err := Get(app, PayloadKindRetailOSDecrypted)
+	if err != nil {
+		return nil, err
+	}
+
+	needle1 := []byte("Eject before disconnecting\x00")
+	needle2 := []byte("freemyipod\x00")
+	paddingLen := len(needle1) - len(needle2)
+	needle2 = append(needle2, bytes.Repeat([]byte{0}, paddingLen)...)
+	customized := bytes.ReplaceAll(decrypted, needle1, needle2)
+	return customized, nil
+}
+
+func Get(app *app.App, payload PayloadKind, options ...GetOption) ([]byte, error) {
 	url, err := urlForKind(payload, app.Desc.Kind)
 	if err != nil {
 		return nil, err
@@ -292,21 +419,27 @@ func Get(app *app.App, payload PayloadKind) ([]byte, error) {
 
 	fspath := pathFor(&app.Desc.Kind, payload, url)
 	if exists, err := Store.Exists(fspath); err == nil && exists {
-		slog.Info("Using cached data", "kind", app.Desc.Kind, "payload", payload, "path", fspath)
+		slog.Info("Get: Using cached data", "kind", app.Desc.Kind, "payload", payload, "path", fspath)
 		return Store.ReadFile(fspath)
 	}
+	slog.Info("Get: No cached data, performing slow action...")
 
 	switch payload {
 	case PayloadKindWTFUpstream, PayloadKindRecoveryUpstream, PayloadKindFirmwareUpstream, PayloadKindBootloaderUpstream, PayloadKindRetailOSUpstream, PayloadKindDiagsUpstream:
-		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url)
+		err = getPayloadFromPhobosIPSW(payload, app.Desc.Kind, url, options...)
 	case PayloadKindBootloaderDecrypted:
-		err = getBootloaderDecrypted(app)
+		err = getBootloaderDecrypted(app, options...)
 	case PayloadKindWTFDecrypted:
-		err = getWTFDecrypted(app)
+		err = getWTFDecrypted(app, options...)
 	case PayloadKindDiagsDecrypted:
-		err = getDiagsDecrypted(app)
+		err = getDiagsDecrypted(app, options...)
+	case PayloadKindRetailOSDecrypted:
+		err = getRetailOSDecrypted(app, options...)
 	case PayloadKindWTFDefanged:
-		err = getWTFDefanged(app)
+		err = getWTFDefanged(app, options...)
+	case PayloadKindRetailOSCustomized:
+		// Not cached.
+		return getRetailOSCustomized(app, options...)
 	default:
 		return nil, fmt.Errorf("don't know how to get a %s", payload)
 	}
