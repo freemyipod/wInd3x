@@ -73,11 +73,16 @@ var FirmwareVersionOverrides map[devices.Kind]string
 func getJingle() (*jingle, error) {
 	fspath := pathFor(nil, PayloadKindJingleXML, "")
 	var bytes []byte
-	if _, err := Store.Exists(fspath); err == nil {
+	exists, err := Store.Exists(fspath)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		slog.Info("Jingle: Using cached XML....")
 		bytes, _ = Store.ReadFile(fspath)
 	}
 	if bytes == nil {
-		slog.Info("Downloading iTunes XML...")
+		slog.Info("Jingle: Downloading XML...")
 		resp, err := http.Get(jingleURL)
 		if err != nil {
 			return nil, fmt.Errorf("could not download iTunes XML: %w", err)
@@ -90,14 +95,14 @@ func getJingle() (*jingle, error) {
 		if err := Store.WriteFile(fspath, bytes); err != nil {
 			slog.Error("Could not save iTunes XML cache", "err", err)
 		}
-	} else {
-		slog.Info("Using iTunes XML cache", "path", fspath)
 	}
+	slog.Info("Jingle: Got XML!")
 
 	var res jingle
 	if _, err := plist.Unmarshal(bytes, &res); err != nil {
 		return nil, err
 	}
+	slog.Info("Jingle: Unmarshaled.")
 	return &res, nil
 }
 
