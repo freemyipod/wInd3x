@@ -27,6 +27,7 @@ func main() {
 		},
 	}
 	http.Handle("/ipod/", proxy)
+	http.Handle("/iPod/", proxy)
 	http.Handle("/", http.FileServer(http.Dir(flagRoot)))
 
 	log.Fatal(http.ListenAndServe(flagListen, nil))
