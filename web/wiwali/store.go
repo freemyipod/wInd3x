@@ -15,8 +15,8 @@ type indexedDBFS struct {
 }
 
 func newIndexedDBFS() (*indexedDBFS, error) {
-	dbC := make(chan js.Value)
-	errC := make(chan error)
+	dbC := make(chan js.Value, 1)
+	errC := make(chan error, 1)
 
 	req := js.Global().Get("indexedDB").Call("open", "cache", 3)
 	req.Set("onerror", js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -49,13 +49,20 @@ func newIndexedDBFS() (*indexedDBFS, error) {
 }
 
 func (l *indexedDBFS) ReadFile(p string) ([]byte, error) {
+	slog.Info("ReadFile", "path", p)
 	objStore := l.db.Call("transaction", "files", "readonly").Call("objectStore", "files")
+	okC := make(chan []byte, 1)
+	errC := make(chan error, 1)
+
 	req := objStore.Call("get", p)
-	okC := make(chan []byte)
-	errC := make(chan error)
 	req.Set("onsuccess", js.FuncOf(func(this js.Value, args []js.Value) any {
-		slog.Info("success", "path", p)
-		data, err := fromUint8Array(req.Get("result").Get("data").Get("buffer"))
+		slog.Info("ReadFile success", "path", p)
+		result := req.Get("result")
+		data_ := result.Get("data")
+		buffer := data_.Get("buffer")
+		array := js.Global().Get("Uint8Array").New(buffer)
+		data, err := fromUint8Array(array)
+		slog.Info("ReadFile decoded", "path", p)
 		if err != nil {
 			errC <- err
 		} else {
@@ -64,27 +71,32 @@ func (l *indexedDBFS) ReadFile(p string) ([]byte, error) {
 		return js.Null()
 	}))
 	req.Set("onerror", js.FuncOf(func(this js.Value, args []js.Value) any {
-		slog.Info("error", "path", p)
+		slog.Info("ReadFile error", "path", p)
 		errC <- fmt.Errorf("failed to store")
 		return js.Null()
 	}))
+
+	slog.Info("ReadFile wait on select...", "path", p)
 	select {
 	case err := <-errC:
+		slog.Info("ReadFile unblocked on error", "path", p)
 		return nil, err
 	case data := <-okC:
+		slog.Info("ReadFile unblocked on success", "path", p)
 		return data, nil
 	}
 }
 
 func (l *indexedDBFS) WriteFile(p string, data []byte) error {
+	slog.Info("WriteFile", "path", p)
 	objStore := l.db.Call("transaction", "files", "readwrite").Call("objectStore", "files")
 	req := objStore.Call("put", map[string]any{
 		"path": p,
 		"data": toUint8Array(data),
 	})
 
-	okC := make(chan struct{})
-	errC := make(chan error)
+	okC := make(chan struct{}, 1)
+	errC := make(chan error, 1)
 	req.Set("onsuccess", js.FuncOf(func(this js.Value, args []js.Value) any {
 		slog.Info("success", "path", p)
 		okC <- struct{}{}
@@ -108,13 +120,22 @@ func (l *indexedDBFS) Remove(p string) error {
 }
 
 func (l *indexedDBFS) Exists(p string) (bool, error) {
+	slog.Info("Exists", "path", p)
 	objStore := l.db.Call("transaction", "files", "readonly").Call("objectStore", "files")
 	req := objStore.Call("get", p)
-	okC := make(chan []byte)
-	errC := make(chan error)
+	okC := make(chan []byte, 1)
+	errC := make(chan error, 1)
 	req.Set("onsuccess", js.FuncOf(func(this js.Value, args []js.Value) any {
-		slog.Info("success", "path", p)
-		data, err := fromUint8Array(req.Get("result").Get("data").Get("buffer"))
+		slog.Info("Exists success", "path", p)
+		result := req.Get("result")
+		if result.IsUndefined() {
+			errC <- fmt.Errorf("no file")
+			return js.Null()
+		}
+		data_ := result.Get("data")
+		buffer := data_.Get("buffer")
+		array := js.Global().Get("Uint8Array").New(buffer)
+		data, err := fromUint8Array(array)
 		if err != nil {
 			errC <- err
 		} else {
@@ -123,14 +144,17 @@ func (l *indexedDBFS) Exists(p string) (bool, error) {
 		return js.Null()
 	}))
 	req.Set("onerror", js.FuncOf(func(this js.Value, args []js.Value) any {
+		slog.Info("Exists error", "path", p)
 		slog.Info("error", "path", p)
 		errC <- fmt.Errorf("failed to store")
 		return js.Null()
 	}))
 	select {
 	case <-errC:
+		slog.Info("Exists unblocked on error", "path", p)
 		return false, nil
 	case <-okC:
+		slog.Info("Exists unblocked on success", "path", p)
 		return true, nil
 	}
 }

@@ -112,7 +112,9 @@ func (u *usb) GetStringDescriptor(descIndex int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("when getting descriptor: %w", err)
 	}
-	data, err := fromUint8Array(res.Get("data").Get("buffer"))
+	buffer := res.Get("data").Get("buffer")
+	array := js.Global().Get("Uint8Array").New(buffer)
+	data, err := fromUint8Array(array)
 	if err != nil {
 		return "", fmt.Errorf("could not load returned descriptor: %w", err)
 	}
