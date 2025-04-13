@@ -148,7 +148,18 @@ func SendChunk(usb devices.Usb, c []byte, blockno uint16) error {
 	return nil
 }
 
-func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error {
+type SendOption struct {
+	Progress func(float32)
+}
+
+func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion, opts ...SendOption) error {
+	var progress func(float32)
+	for _, opt := range opts {
+		if opt.Progress != nil {
+			progress = opt.Progress
+		}
+	}
+
 	if err := Clean(usb); err != nil {
 		return fmt.Errorf("clean: %w", err)
 	}
@@ -165,6 +176,7 @@ func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error
 
 	buf := bytes.NewBuffer(i)
 	blockno := uint16(0)
+	done := 0
 	for {
 		chunk := make([]byte, clen)
 		n, err := buf.Read(chunk)
@@ -174,8 +186,12 @@ func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error
 			}
 			return fmt.Errorf("read failed: %w", err)
 		}
+		done += n
 		if err := SendChunk(usb, chunk[:n], blockno); err != nil {
 			return fmt.Errorf("chunk %d failed: %w", blockno, err)
+		}
+		if progress != nil {
+			progress(float32(done) / float32(len(i)))
 		}
 		status, err := GetStatus(usb)
 		if err != nil {
