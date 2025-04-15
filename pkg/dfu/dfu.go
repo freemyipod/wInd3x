@@ -115,7 +115,7 @@ func GetStatus(usb devices.Usb) (*Status, error) {
 		return nil, fmt.Errorf("status returned %d bytes", res)
 	}
 
-	timeoutMsec := (uint32(buf[2]) << 16) | (uint32(buf[1]) << 8) | uint32(buf[0])
+	timeoutMsec := (uint32(buf[3]) << 16) | (uint32(buf[2]) << 8) | uint32(buf[1])
 	return &Status{
 		Err:     Err(uint8(buf[0])),
 		State:   State(uint8(buf[4])),
@@ -184,6 +184,17 @@ func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion) error
 		if want, got := ErrOk, status.Err; want != got {
 			return fmt.Errorf("chunk %d status expected %d, got %d", blockno, want, got)
 		}
+		for (status.State != StateDnloadIdle){
+			time.Sleep(status.Timeout)
+			status, err = GetStatus(usb)
+			if err != nil {
+				return fmt.Errorf("chunk %d status failed: %w", blockno, err)
+			}
+			if want, got := ErrOk, status.Err; want != got {
+				return fmt.Errorf("chunk %d status expected %d, got %d", blockno, want, got)
+			}
+		} 
+		
 		blockno += 1
 
 	}
