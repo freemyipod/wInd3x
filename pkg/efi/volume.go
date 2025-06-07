@@ -6,8 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // FirmwareVolumeHeader as per EFI spec.
@@ -104,6 +103,11 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 
 	var files []*FirmwareFile
 	for r.Len() != 0 {
+		slog.Debug("Reading file", "files", len(files), "left", r.Len())
+		if r.Len() <= 16 {
+			// HACK Needed for N5G.
+			break
+		}
 		file, err := readFile(r)
 		if err != nil {
 			return nil, fmt.Errorf("reading file %d failed: %v", len(files), err)
@@ -113,7 +117,7 @@ func ReadVolume(r *NestedReader) (*Volume, error) {
 		}
 		files = append(files, file)
 	}
-	slog.Debug("reading done", "files", len(files), "left", r.Len())
+	slog.Debug("Reading done", "files", len(files), "left", r.Len())
 
 	paddingLen := r.Len() - restSize
 	slog.Debug("padding", "len", paddingLen)

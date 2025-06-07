@@ -106,7 +106,7 @@ func readFile(r *NestedReader) (*FirmwareFile, error) {
 	var header FirmwareFileHeader
 	peek := r.pos
 	if err := binary.Read(r, binary.LittleEndian, &header); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading header failed: %w", err)
 	}
 
 	if header.GUID.String() == "ffffffff-ffff-ffff-ffff-ffffffffffff" {
