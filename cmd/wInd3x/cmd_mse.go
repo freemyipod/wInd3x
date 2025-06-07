@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/mse"
@@ -47,7 +47,7 @@ var mseExtractCmd = &cobra.Command{
 				continue
 			}
 			path := filepath.Join(dir, file.Header.Name.String())
-			glog.Infof("Extracting %s ...", path)
+			slog.Info("Extracting ...", "path", path)
 			if err := os.WriteFile(path, file.Data, 0666); err != nil {
 				return err
 			}

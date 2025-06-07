@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"slices"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
@@ -41,7 +41,7 @@ func (v *findVisitor) VisitFile(file *efi.FirmwareFile) error {
 		if section.Header().Type == efi.SectionTypeUserInterface {
 			name := string(bytes.ReplaceAll(section.Raw(), []byte{0}, []byte{}))
 			if slices.Contains(v.want, name) {
-				glog.Infof("Found %s", name)
+				slog.Debug("Found", "name", name)
 				v.found = append(v.found, file)
 			}
 		}
@@ -94,9 +94,9 @@ func superdiags(app *app.App) ([]byte, error) {
 		return nil, fmt.Errorf("did not find all requested modules (wanted %v, got %d)", fv.want, len(fv.found))
 	}
 
-	glog.Infof("Before: %d files", len(diag.Files))
+	slog.Debug("Before append", "files", len(diag.Files))
 	diag.Files = append(diag.Files, fv.found...)
-	glog.Infof("After: %d files", len(diag.Files))
+	slog.Debug("After append", "files", len(diag.Files))
 	diagb, err = diag.Serialize()
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize superdiags fv: %w", err)
@@ -133,12 +133,12 @@ var cfwSuperdiagsCmd = &cobra.Command{
 		if err := haxeddfu.Trigger(app.Usb, app.Ep, false); err != nil {
 			return fmt.Errorf("failed to run wInd3x exploit: %w", err)
 		}
-		glog.Infof("Sending defanged WTF...")
+		slog.Info("Sending defanged WTF...")
 		if err := dfu.SendImage(app.Usb, wtf, app.Desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("failed to send image: %w", err)
 		}
 
-		glog.Infof("Waiting 10s for device to switch to WTF mode...")
+		slog.Info("Waiting 10s for device to switch to WTF mode...")
 		ctx, ctxC := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer ctxC()
 		if err := app.waitSwitch(ctx, devices.WTF); err != nil {
@@ -146,13 +146,13 @@ var cfwSuperdiagsCmd = &cobra.Command{
 		}
 		time.Sleep(time.Second)
 
-		glog.Infof("Sending diags...")
+		slog.Info("Sending diags...")
 		for i := 0; i < 10; i++ {
 			err = dfu.SendImage(app.Usb, diags, app.Desc.Kind.DFUVersion())
 			if err == nil {
 				break
 			} else {
-				glog.Errorf("%v", err)
+				slog.Error("Error when sending diags", "err", err)
 				time.Sleep(time.Second)
 			}
 		}
@@ -160,7 +160,7 @@ var cfwSuperdiagsCmd = &cobra.Command{
 			return err
 		}
 
-		glog.Infof("Done.")
+		slog.Info("Done.")
 
 		return nil
 	},
@@ -192,7 +192,7 @@ var cfwRunCmd = &cobra.Command{
 		if err := haxeddfu.Trigger(app.Usb, app.Ep, false); err != nil {
 			return fmt.Errorf("failed to run wInd3x exploit: %w", err)
 		}
-		glog.Infof("Sending defanged WTF...")
+		slog.Info("Sending defanged WTF...")
 		if err := dfu.SendImage(app.Usb, wtf, app.Desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("failed to send image: %w", err)
 		}
@@ -203,7 +203,7 @@ var cfwRunCmd = &cobra.Command{
 		case err == image.ErrNotImage1:
 			fallthrough
 		case len(fwb) < 0x400:
-			glog.Infof("Given firmware file is not IMG1, packing into one...")
+			slog.Info("Given firmware file is not IMG1, packing into one...")
 			fwb, err = image.MakeUnsigned(app.Desc.Kind, 0, fwb)
 			if err != nil {
 				return err
@@ -212,7 +212,7 @@ var cfwRunCmd = &cobra.Command{
 			return err
 		}
 
-		glog.Infof("Waiting 10s for device to switch to WTF mode...")
+		slog.Info("Waiting 10s for device to switch to WTF mode...")
 		ctx, ctxC := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer ctxC()
 		if err := app.waitSwitch(ctx, devices.WTF); err != nil {
@@ -220,13 +220,13 @@ var cfwRunCmd = &cobra.Command{
 		}
 		time.Sleep(time.Second)
 
-		glog.Infof("Sending firmware...")
+		slog.Info("Sending firmware...")
 		for i := 0; i < 10; i++ {
 			err = dfu.SendImage(app.Usb, fwb, app.Desc.Kind.DFUVersion())
 			if err == nil {
 				break
 			} else {
-				glog.Errorf("%v", err)
+				slog.Error("Error when sending firmware", "err", err)
 				time.Sleep(time.Second)
 			}
 		}
@@ -234,7 +234,7 @@ var cfwRunCmd = &cobra.Command{
 			return err
 		}
 
-		glog.Infof("Done.")
+		slog.Info("Done.")
 
 		return nil
 	},

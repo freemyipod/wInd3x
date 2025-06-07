@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -85,7 +85,7 @@ var nandReadCmd = &cobra.Command{
 		}
 
 		for p := uint32(0); p < 0x100; p += 1 {
-			glog.Infof("%.2f%%...", float32(p)*100/0x100)
+			slog.Info("Progress...", "percent", float32(p)*100/0x100)
 			for offs := uint32(0); offs < 0x600; offs += 0x40 {
 				data, err := nandReadPageOffset(&app.App, bank, p, offs)
 				if err != nil {

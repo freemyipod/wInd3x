@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/cache"
@@ -41,9 +41,9 @@ var restoreCmd = &cobra.Command{
 		switch restoreVersion {
 		case "list":
 			versions := cache.GetFirmwareVersions(app.Desc.Kind)
-			glog.Infof("Available versions for %s:", app.Desc.Kind)
+			slog.Info("Available versions:", "kind", app.Desc.Kind)
 			for _, version := range versions {
-				glog.Infof("- %s", version)
+				slog.Info(fmt.Sprintf("- %s", version))
 			}
 			return nil
 		case "", "current":
@@ -75,18 +75,18 @@ var restoreCmd = &cobra.Command{
 		}
 
 		for {
-			glog.Infof("Found %s in %s", app.Desc.Kind, app.InterfaceKind)
+			slog.Info("Found device", "device", app.Desc.Kind, "interface", app.InterfaceKind)
 			switch app.InterfaceKind {
 			case devices.DFU:
 				wtf, err := cache.Get(&app.App, cache.PayloadKindWTFUpstream)
 				if err != nil {
 					return fmt.Errorf("could not get wtf payload: %s", err)
 				}
-				glog.Infof("Sending WTF...")
+				slog.Info("Sending WTF...")
 				if err := dfu.SendImage(app.Usb, wtf, app.Desc.Kind.DFUVersion()); err != nil {
 					return fmt.Errorf("Failed to send image: %w", err)
 				}
-				glog.Infof("Waiting 10s for device to switch to WTF mode...")
+				slog.Info("Waiting 10s for device to switch to WTF mode...")
 				ctx, _ := context.WithTimeout(cmd.Context(), 10*time.Second)
 				if err := app.waitSwitch(ctx, devices.WTF); err != nil {
 					return fmt.Errorf("device did not switch to WTF mode: %w", err)
@@ -97,20 +97,20 @@ var restoreCmd = &cobra.Command{
 				if err != nil {
 					return fmt.Errorf("could not get recovery payload: %s", err)
 				}
-				glog.Infof("Sending recovery firmware...")
+				slog.Info("Sending recovery firmware...")
 				for i := 0; i < 10; i++ {
 					err = dfu.SendImage(app.Usb, recovery, app.Desc.Kind.DFUVersion())
 					if err == nil {
 						break
 					} else {
-						glog.Errorf("%v", err)
+						slog.Error("Sending recovery failed", "err", err)
 						time.Sleep(time.Second)
 					}
 				}
 				if err != nil {
 					return err
 				}
-				glog.Infof("Waiting 30s for device to switch to Recovery mode...")
+				slog.Info("Waiting 30s for device to switch to Recovery mode...")
 				ctx, _ := context.WithTimeout(cmd.Context(), 30*time.Second)
 				if err := app.waitSwitch(ctx, devices.Disk); err != nil {
 					return fmt.Errorf("device did not switch to Recovery mode: %w", err)
@@ -122,7 +122,7 @@ var restoreCmd = &cobra.Command{
 				}
 				di, err := h.IPodDeviceInformation()
 				if err != nil {
-					glog.Errorf("Could not get device information: %v", err)
+					slog.Error("Could not get device information", "err", err)
 				} else {
 					fmt.Printf("SerialNumber: %s\n", di.SerialNumber)
 					fmt.Printf("     BuildID: %s\n", di.BuildID)
@@ -130,30 +130,30 @@ var restoreCmd = &cobra.Command{
 
 				if restoreFull {
 					partsize := len(firmware)
-					glog.Infof("Reformatting to %d MiB system partition...", partsize>>20)
+					slog.Info("Reformatting system partition...", "mib", partsize>>20)
 					if err := h.IPodRepartition(partsize); err != nil {
 						return fmt.Errorf("repartitioning failed: %w", err)
 					}
 					if hasBootloader {
-						glog.Infof("Writing bootloader...")
+						slog.Info("Writing bootloader...")
 						if err := h.IPodUpdateSendFull(usbms.IPodUpdateBootloader, bootloader); err != nil {
 							return fmt.Errorf("writing bootloader failed: %w", err)
 						}
 					}
 				}
-				glog.Infof("Writing firmware...")
+				slog.Info("Writing firmware...")
 				if err := h.IPodUpdateSendFull(usbms.IPodUpdateFirmware, firmware); err != nil {
 					return fmt.Errorf("writing firmware failed: %w", err)
 				}
 
 				if restoreFull {
-					glog.Infof("Finalizing...")
+					slog.Info("Finalizing...")
 					if err := h.IPodFinalize(false); err != nil {
 						return fmt.Errorf("rebooting failed: %w", err)
 					}
-					glog.Infof("Please reformat the main partition of the device as FAT32, otherwise it will refuse to boot.")
+					slog.Info("Please reformat the main partition of the device as FAT32, otherwise it will refuse to boot.")
 				} else {
-					glog.Infof("Resetting...")
+					slog.Info("Resetting...")
 					if err := h.IPodFinalize(true); err != nil {
 						return fmt.Errorf("rebooting failed: %w", err)
 					}

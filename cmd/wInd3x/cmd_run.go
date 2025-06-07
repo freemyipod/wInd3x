@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/dfu"
@@ -30,7 +30,7 @@ var runCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		glog.Infof("Uploading %s...", path)
+		slog.Info("Uploading...", "path", path)
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("Failed to read image: %w", err)
@@ -42,7 +42,7 @@ var runCmd = &cobra.Command{
 		case err == image.ErrNotImage1:
 			fallthrough
 		case len(data) < 0x400:
-			glog.Infof("Given firmware file is not IMG1, packing into one...")
+			slog.Info("Given firmware file is not IMG1, packing into one...")
 			data, err = image.MakeUnsigned(app.Desc.Kind, 0, data)
 			if err != nil {
 				return err
@@ -57,7 +57,7 @@ var runCmd = &cobra.Command{
 		if err := dfu.SendImage(app.Usb, data, app.Desc.Kind.DFUVersion()); err != nil {
 			return fmt.Errorf("Failed to send image: %w", err)
 		}
-		glog.Infof("Image sent.")
+		slog.Info("Image sent.")
 
 		return nil
 	},

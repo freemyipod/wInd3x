@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/freemyipod/wInd3x/pkg/cache"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +46,7 @@ var downloadCmd = &cobra.Command{
 		if err := os.WriteFile(args[1], by, 0600); err != nil {
 			return err
 		}
-		glog.Infof("Wrote %s to %s", args[0], args[1])
+		slog.Info("Wrote file", "kind", args[0], "path", args[1])
 		return nil
 	},
 }

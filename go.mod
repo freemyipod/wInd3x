@@ -6,7 +6,6 @@ toolchain go1.23.3
 
 require (
 	github.com/adrg/xdg v0.4.0
-	github.com/golang/glog v1.2.4
 	github.com/google/gousb v1.1.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/spf13/cobra v1.5.0

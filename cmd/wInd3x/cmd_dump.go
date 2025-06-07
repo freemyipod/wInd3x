@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/exploit/dumpmem"
@@ -41,7 +41,7 @@ var dumpCmd = &cobra.Command{
 		start := time.Now()
 		for i := uint32(0); i < size; i += 0x40 {
 			o := offset + i
-			glog.Infof("Dumping %x...", o)
+			slog.Info("Dumping...", "offset", o)
 			data, err := dumpmem.Trigger(app.Usb, app.Ep, o)
 			if err != nil {
 				return fmt.Errorf("failed to run wInd3x exploit: %w", err)
@@ -51,7 +51,7 @@ var dumpCmd = &cobra.Command{
 			}
 		}
 		took := time.Since(start)
-		glog.Infof("Done! %d bytes in %d seconds (%d bytes per second)", size, int(took.Seconds()), int(float64(size)/took.Seconds()))
+		slog.Info("Done!", "bytes", size, "seconds", int(took.Seconds()), "bps", int(float64(size)/took.Seconds()))
 
 		return nil
 	},

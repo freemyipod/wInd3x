@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
 	"github.com/freemyipod/wInd3x/pkg/exploit"
 	"github.com/freemyipod/wInd3x/pkg/uasm"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -93,12 +93,12 @@ var norReadCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		glog.Infof("Reading NOR address 0x%08x... (SPI %d, %d bytes)", address, spino, count)
+		slog.Info("Reading NOR...", "address", address, "spi", spino, "bytes", count)
 		err = readNOR(&app.App, f, spino, address, count)
 		if err != nil {
 			return err
 		}
-		glog.Infof("Done")
+		slog.Info("Done")
 		return nil
 	},
 }

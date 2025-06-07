@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
 	"github.com/freemyipod/wInd3x/pkg/image"
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +53,7 @@ var decryptCmd = &cobra.Command{
 			return fmt.Errorf("could not write image: %w", err)
 		}
 
-		glog.Infof("Done!")
+		slog.Info("Done!")
 
 		return nil
 	},
