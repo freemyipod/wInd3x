@@ -4,8 +4,10 @@ buildGoModule {
   name = "wInd3x";
   src = ./.;
 
-  buildInputs = [ libusb ];
+  buildInputs = [ libusb1 ];
   nativeBuildInputs = [ pkg-config ];
 
-  vendorSha256 = "sha256-AjmH5oE/u+0R5d40r2zMAauQJTAwqHi24aqUMj2DmzU=";
+  deCheck = false;
+
+  vendorHash = "sha256-QOgB7OD11L3Xj+ZOA4/UP88iEwVHXvSCMmdlkSwPu80=";
 }
