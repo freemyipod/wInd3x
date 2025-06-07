@@ -8,6 +8,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strconv"
 	"syscall/js"
 
@@ -84,12 +85,11 @@ func toUint8Array(b []byte) js.Value {
 }
 
 func fromUint8Array(v js.Value) ([]byte, error) {
-	dataView := js.Global().Get("DataView").New(v)
-	bl := dataView.Get("byteLength").Int()
-	res := make([]byte, bl)
-	for i := 0; i < bl; i++ {
-		v := dataView.Call("getUint8", i).Int()
-		res[i] = byte(v)
+	l := v.Length()
+	res := make([]byte, l)
+	l2 := js.CopyBytesToGo(res, v)
+	if l2 != l {
+		return nil, fmt.Errorf("copied %d bytes, wanted %d", l2, l)
 	}
 	return res, nil
 }
@@ -165,8 +165,36 @@ func newApp(this js.Value, args []js.Value) (js.Value, error) {
 			err := haxeddfu.Trigger(a.Usb, a.Ep, false)
 			return js.Null(), err
 		}),
+		"PreparePayload": async(func(this js.Value, args []js.Value) (js.Value, error) {
+			kind := cache.PayloadKind(args[0].String())
+			var getOpts []cache.GetOption
+			if len(args) > 1 {
+				progress := args[1]
+				getOpts = append(getOpts, cache.GetOption{
+					Progress: func(f float32) {
+						progress.Invoke(js.ValueOf(f))
+					},
+				})
+			}
+
+			slog.Info("Getting payload...")
+			_, err := cache.Get(&a, kind, getOpts...)
+			if err != nil {
+				return js.Null(), fmt.Errorf("getting payload %q failed: %w", kind, err)
+			}
+			return js.Null(), nil
+		}),
 		"SendPayload": async(func(this js.Value, args []js.Value) (js.Value, error) {
 			kind := cache.PayloadKind(args[0].String())
+			var sendOpts []dfu.SendOption
+			if len(args) > 1 {
+				progress := args[1]
+				sendOpts = append(sendOpts, dfu.SendOption{
+					Progress: func(f float32) {
+						progress.Invoke(js.ValueOf(f))
+					},
+				})
+			}
 
 			slog.Info("Getting payload...")
 			pl, err := cache.Get(&a, kind)
@@ -174,7 +202,7 @@ func newApp(this js.Value, args []js.Value) (js.Value, error) {
 				return js.Null(), fmt.Errorf("getting payload %q failed: %w", kind, err)
 			}
 			slog.Info("Sending payload...")
-			if err := dfu.SendImage(a.Usb, pl, a.Desc.Kind.DFUVersion()); err != nil {
+			if err := dfu.SendImage(a.Usb, pl, a.Desc.Kind.DFUVersion(), sendOpts...); err != nil {
 				return js.Null(), fmt.Errorf("failed to send image: %w", err)
 			}
 			return js.Null(), nil
@@ -199,6 +227,10 @@ func setup(this js.Value, args []js.Value) (js.Value, error) {
 		return js.Null(), fmt.Errorf("setting up indexeddb: %w", err)
 	}
 	cache.Store = store
+	cache.ReverseProxy = &url.URL{
+		Scheme: "https",
+		Host:   "nugget.zone",
+	}
 
 	return js.Null(), nil
 }

@@ -16,6 +16,8 @@ export enum PayloadKind {
 	BootloaderDecryptedCache = "bootloader-decrypted-cache",
 
 	RetailOSUpstream = "retailos-upstream",
+	RetailOSDecrypted = "retailos-decrypted",
+	RetailOSCustomized = "retailos-customized",
 
 	DiagsUpstream       = "diags-upstream",
 	DiagsDecrypted      = "diags-decrypted",
@@ -59,7 +61,8 @@ export interface App {
     PrepareUSB(): Promise<null>;
     HaxDFU(): Promise<null>;
     DumpMem(offset: BigInt): Promise<Uint8Array>;
-    SendPayload(kind: PayloadKind): Promise<null>;
+    PreparePayload(kind: PayloadKind, progress?: (done: number) => void): Promise<null>;
+    SendPayload(kind: PayloadKind, progress?: (done: number) => void): Promise<null>;
 }
 
 export interface Exports {

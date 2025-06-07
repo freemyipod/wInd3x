@@ -12,11 +12,21 @@ const commonStyles = css`
         background-color: #ffeeee;
         padding: 0.5em 2em 0.5em 2em;
     }
+    .okay {
+        background-color: #eeffee;
+        padding: 0.5em 2em 0.5em 2em;
+    }
     button {
         padding: 0.5em;
     }
     h1 small {
         color: #444;
+    }
+    li {
+        line-height: 1.5em;
+    }
+    p {
+        line-height: 1.5em;
     }
 `;
 
@@ -35,18 +45,23 @@ export class Disclaimer extends LitElement {
 
     render() {
         return html`
-            <h1>Welcome to the nugget zone! <small>alpha 1</small></h1>
+            <h1>Welcome to the nugget zone! <small>alpha 2</small></h1>
             <p>
-                This little web tool is a proof of concept to demonstrate future custom-firmware-like capabilities on the <b>iPod Nano 7th Gen</b>. It will allow you to run a customized version of the stock software <b>fully in memory and reversible by reboot</b>.
+                This little web tool is a proof of concept to demonstrate custom-firmware-like capabilities on the <b>iPod Nano 7th Gen</b>. It allows you to run a customized version of the stock software <b>fully in memory and reversible by reboot</b>.
             </p>
             <p>
-                With the current <b>alpha 1</b> stage it only allows you to dump the BootROM of the Nano 7th gen. Please test the flow as much as possible, and report any bugs you encounter.
+                Current customizations are:
             </p>
             <p>
-                It is based upon the <a href="https://github.com/freemyipod/wInd3x">wInd3x</a> toolkit</a>, but runs fully in your browser. It makes use of multiple vulnerabilities and exploit chains discovered by many people, eg.: __gsch, q3k, and others.
+                <ol>
+                    <li>'freemyipod' branding on the USB connection screen.</li>
+                </ol>
             </p>
             <p>
-                This tool is maintained by <a href="https://social.hackerspace.pl/@q3k">q3k</a>, who can be reached at q3k@q3k.org by email or @q3k:hackerspace.pl on Matrix.
+                This tool is based upon the <a href="https://github.com/freemyipod/wInd3x">wInd3x</a> toolkit</a>, but runs fully in your browser. It makes use of multiple vulnerabilities and exploit chains discovered by many people, eg.: __gsch, q3k, and others.
+            </p>
+            <p>
+                It maintained by <a href="https://social.hackerspace.pl/@q3k">q3k</a>, who can be reached at q3k@q3k.org by email or @q3k:hackerspace.pl on Matrix.
             </p>
             <div class="attention">
                 <h4>Warranty Disclaimer</h4>
@@ -100,6 +115,7 @@ export class DeviceConnected extends LitElement {
 interface Connected {
     app: GoApp,
     di: DeviceDescription,
+    manufacturer?: string,
 }
 
 @customElement("nz-hex-dump")
@@ -149,16 +165,134 @@ export class HexDump extends LitElement {
     }
 }
 
+interface Step {
+    description: string,
+    percentage: number,
+}
+
+class Progress {
+    steps: Array<Step>;
+
+    constructor() {
+        this.steps = [];
+    }
+
+    reset() {
+        this.steps = [];
+    }
+
+    step(description: string): Step {
+        console.log("Progress: Starting step " + description);
+        const prev = this.steps.length;
+        if (prev > 0) {
+            this.steps[prev-1].percentage = 1.0;
+        }
+        const step = {
+            description,
+            percentage: 0,
+        };
+        this.steps.push(step);
+        return step;
+    }
+}
+
+@customElement("nz-wtf-device")
+export class WTFDevice extends LitElement {
+    @property()
+    connected?: Connected
+
+    @state()
+    _progress: Progress = new Progress;
+
+    @state()
+    _bootrom: Array<number> = [];
+
+    static styles = [commonStyles];
+
+    private _cfwTask = new Task(this, {
+        task: async ([], {signal}) => {
+            if (this.connected === undefined) {
+                throw new RunError("not connected");
+            }
+            this._progress.reset();
+
+            let step = this._progress.step("Uploading RetailOS CFW...");
+            await this.connected.app.SendPayload(PayloadKind.RetailOSCustomized, (done) => {
+                step.percentage = done;
+                this.requestUpdate();
+            });
+            await this.requestUpdate();
+
+            this.dispatchEvent(new CustomEvent('started-cfw', {
+                detail: {},
+            }));
+        },
+        args: () => [],
+        autoRun: false,
+    });
+
+    render() {
+        let cfw = this._cfwTask.render({
+            initial: () => html`
+                <p>
+                    <button @click=${this.sendCFW}>Upload CFW RetailOS</button>
+                </p>
+            `,
+            pending: () => html``,
+            complete: () => html`
+                <p>
+                    RetailOS CFW uploaded! To return to stock, simply reboot your device.
+                </p>
+            `,
+            error: (e) => html`
+                <p class="attention">
+                    RetailOS CFW upload failed: <code>${e}</code>.
+                </p>
+                <p>
+                    <button @click=${this.sendCFW}>Try again...</button>
+                </p>
+            `,
+        });
+        let progress = this._progress.steps.map((step) => {
+            return html`
+                <li>${step.description}: ${Math.floor(step.percentage * 100)}%</li>
+            `;
+        });
+        let progress_ = html`
+            <p>
+                <ul class="okay">
+                    ${progress}
+                </ul>
+            </p>
+        `;
+        return html`
+            <p>
+                You can now upload a customized RetailOS firmware.
+            </p>
+            ${progress.length > 0 ? progress_ : html``}
+            ${cfw}
+        `;
+    }
+
+    sendCFW() {
+        this._bootrom = [];
+        this._cfwTask.run();
+    }
+}
+
 @customElement("nz-dfu-device")
 export class DFUDevice extends LitElement {
     @property()
     connected?: Connected
 
     @state()
-    _progress: number = 0.0;
+    _progress: Progress = new Progress;
 
     @state()
     _bootrom: Array<number> = [];
+
+    @state()
+    _disabled = false;
 
     static styles = [commonStyles];
 
@@ -167,9 +301,13 @@ export class DFUDevice extends LitElement {
             if (this.connected === undefined) {
                 throw new RunError("not connected");
             }
+            this._progress.reset();
+
+            this._progress.step("Running S5Late...");
             await this.connected.app.PrepareUSB();
 
-            this._progress = 0.0;
+            let step = this._progress.step("Dumping BootROM...");
+
             const size = 0x10000;
             const blockSize = 0x40;
             const blocks = size / blockSize;
@@ -177,8 +315,10 @@ export class DFUDevice extends LitElement {
                 let mem = await this.connected.app.DumpMem(BigInt("0x20000000") + BigInt(i) * BigInt(blockSize));
                 let memArray = Array.from(mem);
                 this._bootrom.push(...memArray);
-                this._progress = i / blocks;
+                step.percentage = i / blocks;
+                this.requestUpdate();
             }
+            step.percentage = 1;
         },
         args: () => [],
         autoRun: false,
@@ -203,8 +343,59 @@ export class DFUDevice extends LitElement {
         autoRun: false,
     });
 
+    private async prepareStep(kind: PayloadKind, name: string) {
+            if (this.connected === undefined) {
+                throw new RunError("not connected");
+            }
+
+            let step = this._progress.step(name);
+            await this.requestUpdate();
+            await this.connected.app.PreparePayload(kind, (done) => {
+                step.percentage = done;
+                this.requestUpdate();
+            });
+            step.percentage = 1;
+            await this.requestUpdate();
+    }
+
+    private _wtfTask = new Task(this, {
+        task: async ([], {signal}) => {
+            if (this.connected === undefined) {
+                throw new RunError("not connected");
+            }
+            this._progress.reset();
+
+            await this.prepareStep(PayloadKind.WTFUpstream, "Downloading WTF...");
+            await this.prepareStep(PayloadKind.WTFDecrypted, "Decrypting WTF...");
+            await this.prepareStep(PayloadKind.WTFDefanged, "Defanging WTF...");
+            await this.prepareStep(PayloadKind.RetailOSUpstream, "Downloading RetailOS...");
+            await this.prepareStep(PayloadKind.RetailOSDecrypted, "Decrypting RetailOS (this will take a while)...");
+
+            let step = this._progress.step("Triggering HaxedDFU mode...");
+            await this.connected.app.HaxDFU();
+            step.percentage = 1;
+            await this.requestUpdate();
+
+            step = this._progress.step("Uploading defanged WTF...");
+            await this.connected.app.SendPayload(PayloadKind.WTFDefanged, (done) => {
+                step.percentage = done;
+                this.requestUpdate();
+            });
+            await this.requestUpdate();
+
+            this._disabled = true;
+            this.dispatchEvent(new CustomEvent('switched-to-wtf', {
+                detail: {},
+            }));
+        },
+        args: () => [],
+        autoRun: false,
+    });
+
     render() {
-        let nonePending = (this._dumpTask.status !== TaskStatus.PENDING);
+        let nonePending = (this._dumpTask.status !== TaskStatus.PENDING)
+            && (this._wtfTask.status !== TaskStatus.PENDING);
+
         let save = this._saveTask.render({
             initial: () => html`
                 <button @click=${this.saveBootROM}>Save to file...</button>
@@ -222,11 +413,6 @@ export class DFUDevice extends LitElement {
             `,
         });
         let dump = this._dumpTask.render({
-            pending: () => html`
-                <p>
-                    BootROM Dump progress: ${Math.floor(this._progress * 100)}%...
-                </p>
-            `,
             complete: () => html`
                 <p>
                     BootROM dump complete! ${save}
@@ -239,15 +425,42 @@ export class DFUDevice extends LitElement {
                 </p>
             `,
         });
-        let button = nonePending ? html`
+        let wtf = this._wtfTask.render({
+            complete: () => html`
+                <p>
+                    Defanged WTF uploaded!
+                </p>
+            `,
+            error: (e) => html`
+                <p class="attention">
+                    Defanged WTF upload failed:: <code>${e}</code>.
+                </p>
+            `,
+        });
+        let button = (nonePending && !this._disabled) ? html`
             <p>
                 <button @click=${this.dumpBootROM}>Dump BootROM...</button>
+                <button @click=${this.sendDefangedWTF}>Send defanged WTF...</button>
             </p>
         ` : html``;
+        let progress = this._progress.steps.map((step) => {
+            return html`
+                <li>${step.description}: ${Math.floor(step.percentage * 100)}%</li>
+            `;
+        });
+        let progress_ = html`
+            <p>
+                <ul class="okay">
+                    ${progress}
+                </ul>
+            </p>
+        `;
         return html`
             <p>
-                The <i>nugget.zone</i> alpha can only dump the BootROM for now. More functionality will come in the future!
+                You can now select to either dump the device's BootROM (useful for developers) or continue booting a CFW by sending a Defanged WTF (a second stage bootloader with signature checks disabled).
             </p>
+            ${progress.length > 0 ? progress_ : html``}
+            ${wtf}
             ${dump}
             ${button}
         `;
@@ -258,9 +471,13 @@ export class DFUDevice extends LitElement {
     }
 
     dumpBootROM() {
-        this._progress = 0.0;
         this._bootrom = [];
         this._dumpTask.run();
+    }
+
+    sendDefangedWTF() {
+        this._bootrom = [];
+        this._wtfTask.run();
     }
 }
 
@@ -282,43 +499,74 @@ export class Main extends LitElement {
         args: () => [],
     });
 
-    private _dfuTask = new Task(this, {
+    private async _connect(): Promise<Connected> {
+        if (this.usb === null) {
+            throw new RunError("no WebUSB support - how did you get here?");
+        }
+        if (go === null) {
+            throw new RunError("go/wasm not loaded");
+        }
+        let usb = this.usb;
+        let device = await usb.requestDevice({
+            filters: [
+                // Request everything by Apple...
+                {vendorId: 0x05ac},
+            ]
+        });
+        let app = await go.newApp(device);
+        const di = await app.GetDeviceDescription();
+
+        let manufacturer = "unknown";
+        if (di.interfaceKind != InterfaceKind.Disk) {
+            await app.PrepareUSB();
+            manufacturer = (await app.GetStringDescriptors()).manufacturer
+        }
+        return {app, di, manufacturer};
+    }
+
+    private _wtfTask = new Task(this, {
         task: async ([], {signal}): Promise<Connected> => {
-            console.log(this.usb);
-            console.log(go);
-            if (this.usb === null) {
-                throw new RunError("no WebUSB support - how did you get here?");
-            }
-            if (go === null) {
-                throw new RunError("go/wasm not loaded");
-            }
-            let usb = this.usb;
-            let device = await usb.requestDevice({
-                filters: [
-                    // Request everything by Apple...
-                    {vendorId: 0x05ac},
-                ]
-            });
-            let app = await go.newApp(device);
-            const di = await app.GetDeviceDescription();
-            return {app, di};
+            return await this._connect();
         },
         autoRun: false,
         args: () => [],
     });
 
-    run() {
+    private _dfuTask = new Task(this, {
+        task: async ([], {signal}): Promise<Connected> => {
+            return await this._connect();
+        },
+        autoRun: false,
+        args: () => [],
+    });
+
+    private runDFU() {
         this._dfuTask.run();
     }
+
+    private runWTF() {
+        this._wtfTask.run();
+    }
+
+    @state()
+    private _inWTF: boolean = false;
+
+    private switchedToWTF() {
+        this._inWTF = true;
+    }
+
+    private startedCFW() {
+    }
+
 
     @state()
     private _hideInstructions: boolean = false;
 
     render() {
-        let device = this._dfuTask.render({
+        let dfu = this._dfuTask.render({
             initial: () => html`
                 <p>
-                    <button @click=${this.run}>Run!</button>
+                    <button @click=${this.runDFU}>Run!</button>
                 </p>
             `,
             pending: () => html`
@@ -336,6 +584,7 @@ export class Main extends LitElement {
                             </p>
                             <nz-dfu-device
                                 .connected=${c}
+                                @switched-to-wtf=${this.switchedToWTF}
                             />
                         `;
                     } else {
@@ -344,7 +593,7 @@ export class Main extends LitElement {
                                 Connected to ${c.di.kind} over ${c.di.interfaceKind}. <b>That's not an iPod Nano 7G!</b>
                             </p>
                             <p>
-                                <button @click=${this.run}>Try again!</button>
+                                <button @click=${this.runDFU}>Try again!</button>
                             </p>
                         `;
                     }
@@ -354,7 +603,7 @@ export class Main extends LitElement {
                             Connected to ${c.di.kind} over ${c.di.interfaceKind}. <b>That's not DFU mode!</b> Please follow the instructions above and try again.
                         </p>
                         <p>
-                            <button @click=${this.run}>Try again!</button>
+                            <button @click=${this.runDFU}>Try again!</button>
                         </p>
                     `;
                 }
@@ -364,7 +613,66 @@ export class Main extends LitElement {
                     Could not connect to device: <code>${e}</code>
                 </p>
                 <p>
-                    <button @click=${this.run}>Try again...</button>
+                    <button @click=${this.runDFU}>Try again...</button>
+                </p>
+            `,
+        });
+        let wtf = this._wtfTask.render({
+            initial: () => html`
+                <p>
+                    The device should have switched to defanged WTF mode now. You will need to reconnect to it:
+                </p>
+                <p>
+                    <button @click=${this.runWTF}>Connect!</button>
+                </p>
+            `,
+            pending: () => html`
+                <p>
+                    Waiting for device...
+                </p>
+            `,
+            complete: (c: Connected) => {
+                if (c.di.interfaceKind === InterfaceKind.WTF && c.manufacturer === "freemyipod") {
+                    if (c.di.kind === DeviceKind.Nano7) {
+                        this._hideInstructions = true;
+                        return html`
+                            <p>
+                                Connected to ${c.di.kind} over ${c.di.interfaceKind} with manufacturer ${c.manufacturer}. <b>All good!</b>
+                            </p>
+                            <nz-wtf-device
+                                .connected=${c}
+                                @started-cfw=${this.startedCFW}
+                            />
+                        `;
+                    } else {
+                        return html`
+                            <p class="attention">
+                                Connected to ${c.di.kind} over ${c.di.interfaceKind} with manufacturer ${c.manufacturer}. <b>That's not an iPod Nano 7G! What are you even doing..?</b>
+                            </p>
+                            <p>
+                                <button @click=${this.runWTF}>Try again in WTF mode...</button>
+                                <button @click=${this.runDFU}>... or from scratch in DFU mode.</button>
+                            </p>
+                        `;
+                    }
+                } else {
+                    return html`
+                        <p class="attention">
+                            Connected to ${c.di.kind} over ${c.di.interfaceKind} with manufacturer ${c.manufacturer}. <b>That's not defanged WTF mode!</b> Something went wrong. Try again from scratch after restarting your device into DFU mode.
+                        </p>
+                        <p>
+                            <button @click=${this.runDFU}>Try again!</button>
+                        </p>
+                    `;
+                }
+            },
+            error: (e) => html`
+                <p class="attention">
+                    Could not connect to device: <code>${e}</code>
+                </p>
+                <p>
+                    <button @click=${this.runWTF}>Try again in WTF mode...</button>
+                    <button @click=${this.runDFU}>... or from scratch in DFU mode.</button>
                 </p>
             `,
         });
@@ -389,21 +697,22 @@ export class Main extends LitElement {
                     <p>
                         <b>Please read these instructions carefully!</b>
                     </p>
+                    <ol>
+                        <li>Connect your iPod Nano 7G to this computer. <b>No other generation is currently supported!</b></li>
+                        <li>Press the button below - but read the rest of the instructions first!</li>
+                        <li>A list of compatible devices will appear. It should contain an Apple iPod in disk/retail mode (“<code>iPod</code>”).</li>
+                        <li>Switch the iPod into DFU mode by holding the home and power buttons. The iPod will reboot once (showing the Apple logo), then again (showing a black screen). Release the buttons when you see a device in DFU mode (“<code>USB DFU Device</code>”) appear on the list.</li>
+                        <li>Select the DFU device from the list and allow access to it.</li>
+                    </ol>
                     <p>
-                        <ol>
-                            <li>Connect your iPod Nano 7G to this computer. <b>No other generation is currently supported!</b></li>
-                            <li>Press the button below - but read the rest of the instructions first!</li>
-                            <li>A list of compatible devices will appear. It should contain an Apple iPod in disk/retail mode (“<code>iPod</code>”).</li>
-                            <li>Switch the iPod into DFU mode by holding the home and power buttons. The iPod will reboot once (showing the Apple logo), then again (showing a black screen). Release the buttons when you see a device in DFU mode (“<code>USB DFU Device</code>”) appear on the list.</li>
-                            <li>Select the DFU device from the list and allow access to it.</li>
-                        </ol>
                         <i>Note:</i> Some USB-C to Lightning cables have been observed to not work with DFU mode, with the device not showing up over USB and immediately rebooting. If you're having issues, try a USB A to Lightning cable.
                     </p>
                 `;
                 return html`
                     <h1>Let's go!</h1>
                     ${this._hideInstructions ? html`` : instructions}
-                    ${device}
+                    ${dfu}
+                    ${this._inWTF ? wtf : html``}
                 `;
             },
         });
