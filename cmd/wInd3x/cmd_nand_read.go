@@ -40,6 +40,79 @@ func nandReadPageOffset(a *app.App, bank, page, offset uint32) ([]byte, error) {
 	return resBuf, nil
 }
 
+func nandIdentify(a *app.App) ([]byte, error) {
+	ep := a.Ep
+	usb := a.Usb
+
+	listing, dataAddr := ep.NANDIdentify()
+	listing = append(listing, ep.HandlerFooter(dataAddr)...)
+	read := uasm.Program{
+		Address: ep.ExecAddr(),
+		Listing: listing,
+	}
+
+	if err := dfu.Clean(usb); err != nil {
+		return nil, fmt.Errorf("clean failed: %w", err)
+	}
+
+	resBuf, err := exploit.RCE(usb, ep, read.Assemble(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute read payload: %w", err)
+	}
+	return resBuf, nil
+}
+
+var nandIdentifyCmd = &cobra.Command{
+	Use:   "identify [bank]",
+	Short: "Read NAND identifier for bank",
+	Long:  "Read NAND identifer for bank",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		app, err := newDFU()
+		if err != nil {
+			return err
+		}
+		defer app.Close()
+
+		bank, err := parseNumber(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid bank")
+		}
+		ep := app.Ep
+		usb := app.Usb
+
+		listing := ep.DisableICache()
+		payload, err := ep.NANDInit(bank)
+		if err != nil {
+			return err
+		}
+		listing = append(listing, payload...)
+		listing = append(listing, ep.HandlerFooter(0x20000000)...)
+		init := uasm.Program{
+			Address: ep.ExecAddr(),
+			Listing: listing,
+		}
+
+		if err := dfu.Clean(app.Usb); err != nil {
+			return fmt.Errorf("clean failed: %w", err)
+		}
+
+		if _, err := exploit.RCE(usb, ep, init.Assemble(), nil); err != nil {
+			return fmt.Errorf("failed to execute init payload: %w", err)
+		}
+
+		data, err := nandIdentify(&app.App)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("JEDEC manufacturer ID: 0x%02X\n", data[0])
+		fmt.Printf("JEDEC device ID: 0x%02X 0x%02X 0x%02X\n", data[1], data[2], data[3])
+
+		return nil
+	},
+}
+
 var nandReadCmd = &cobra.Command{
 	Use:   "read [bank] [file]",
 	Short: "Read NAND bank",

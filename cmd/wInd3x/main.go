@@ -44,6 +44,7 @@ func main() {
 	rootCmd.AddCommand(dumpCmd)
 	rootCmd.AddCommand(decryptCmd)
 	nandCmd.AddCommand(nandReadCmd)
+	nandCmd.AddCommand(nandIdentifyCmd)
 	rootCmd.AddCommand(nandCmd)
 	norCmd.AddCommand(norReadCmd)
 	rootCmd.AddCommand(norCmd)
