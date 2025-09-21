@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -12,7 +11,6 @@ import (
 	"github.com/freemyipod/wInd3x/pkg/cache"
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/dfu"
-	"github.com/freemyipod/wInd3x/pkg/mse"
 	"github.com/freemyipod/wInd3x/pkg/usbms"
 )
 
@@ -56,14 +54,6 @@ var restoreCmd = &cobra.Command{
 		firmware, err := cache.Get(&app.App, cache.PayloadKindFirmwareUpstream)
 		if err != nil {
 			return fmt.Errorf("could not get firmware: %w", err)
-		}
-		m, err := mse.Parse(bytes.NewReader(firmware))
-		if err != nil {
-			return fmt.Errorf("could not parse firmware: %w", err)
-		}
-		firmware, err = m.Serialize()
-		if err != nil {
-			return fmt.Errorf("could not serialize modified firmware: %w", err)
 		}
 
 		var bootloader []byte
