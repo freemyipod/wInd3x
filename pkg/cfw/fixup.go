@@ -65,7 +65,7 @@ func SecoreFixup(origPos int, fv *efi.Volume) error {
 	if needed < 0 {
 		reduce := -needed
 		if psize < reduce {
-			return fmt.Errorf("Padding too small", "need", reduce, "got", psize)
+			return fmt.Errorf("Padding too small: need %d, got %d", reduce, psize)
 		}
 		psize -= reduce
 	} else {

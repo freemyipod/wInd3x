@@ -1,14 +1,15 @@
-package mse
+package cache
 
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
-	"github.com/freemyipod/wInd3x/pkg/cache"
 	"github.com/freemyipod/wInd3x/pkg/devices"
+	"github.com/freemyipod/wInd3x/pkg/mse"
 )
 
 func TestRepackAll(t *testing.T) {
@@ -19,24 +20,25 @@ func TestRepackAll(t *testing.T) {
 		devices.Nano6,
 		devices.Nano7,
 	} {
+		log.Printf("Testing repack of %s", kind)
 		a := app.App{
 			Desc: &devices.Description{
 				Kind: kind,
 			},
 		}
-		fw, err := cache.Get(&a, cache.PayloadKindFirmwareUpstream)
+		fw, err := Get(&a, PayloadKindFirmwareUpstream)
 		if err != nil {
 			t.Errorf("%s: could not get firmware: %v", kind, err)
 			continue
 		}
 
-		mse, err := Parse(bytes.NewReader(fw))
+		m, err := mse.Parse(bytes.NewReader(fw))
 		if err != nil {
 			t.Errorf("%s: could not parse firmware: %v", kind, err)
 			continue
 		}
 
-		fw2, err := mse.Serialize()
+		fw2, err := m.Serialize()
 		if err != nil {
 			t.Errorf("%s: could not serialize firmware: %v", kind, err)
 			continue
