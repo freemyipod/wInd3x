@@ -14,7 +14,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log"
 	"strings"
+
+	"github.com/freemyipod/wInd3x/pkg/devices"
 )
 
 // MSE firmware bundle, contains files. These should only be constructed from
@@ -28,6 +31,9 @@ type MSE struct {
 
 	// Individual files.
 	Files []*File
+
+	// Guessed device kind.
+	DeviceKind devices.Kind
 }
 
 // Firmware file, eg. osos or disk,.
@@ -42,10 +48,6 @@ type File struct {
 
 	// Data kept in the file, eg. an IMG1 image or FAT16 filesystem.
 	Data []byte
-
-	// Some files are padded with non-zero bytes. We keep that padding here for
-	// zero-diff repacks.
-	Suffix []byte
 }
 
 type PrefixHeader struct {
@@ -114,7 +116,53 @@ func (f *FileHeader) Valid() bool {
 	return false
 }
 
+func guessGeneration(r io.ReadSeeker) (devices.Kind, error) {
+	// Terrible hack! MSE files seem to have have slightly different packing
+	// semantics between device versions, but don't have any metadata that would
+	// tell us the device version.
+	//
+	// Easiest way to detect a version, pre-parse, is to count IMG1 header
+	// fragments. This is obviously a terrible heuristic, but it works for now.
+
+	headers := map[devices.Kind]string{
+		devices.Nano3: devices.Nano3.SoCCode() + "1.0",
+		devices.Nano4: devices.Nano4.SoCCode() + "2.0",
+		devices.Nano5: devices.Nano5.SoCCode() + "2.0",
+		devices.Nano6: devices.Nano6.SoCCode() + "2.0",
+		devices.Nano7: devices.Nano7.SoCCode() + "2.0",
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return devices.Nano3, err
+	}
+	d, err := io.ReadAll(r)
+	if err != nil {
+		return devices.Nano3, err
+	}
+
+	best := devices.Nano3
+	bestCount := 0
+	for k, s := range headers {
+		count := bytes.Count(d, []byte(s))
+		if count > bestCount {
+			bestCount = count
+			best = k
+		}
+	}
+
+	if bestCount == 0 {
+		return devices.Nano3, fmt.Errorf("did not find any SoC codes")
+	}
+	return best, nil
+}
+
 func Parse(r io.ReadSeeker) (*MSE, error) {
+	gen, err := guessGeneration(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not guess device generation: %w", err)
+	}
+	log.Printf("Parsing MSE for (guessed) generation: %s", gen.String())
+
+	r.Seek(0, io.SeekStart)
 	guardB := make([]byte, 0x100)
 	if _, err := io.ReadFull(r, guardB); err != nil {
 		return nil, fmt.Errorf("could not read guard")
@@ -161,11 +209,11 @@ func Parse(r io.ReadSeeker) (*MSE, error) {
 		})
 	}
 
-	for _, file := range files {
+	for i, file := range files {
 		if !file.Header.Valid() {
 			continue
 		}
-		if _, err := r.Seek(int64(file.Header.Offset), 0); err != nil {
+		if _, err := r.Seek(int64(file.Header.Offset), io.SeekStart); err != nil {
 			return nil, fmt.Errorf("could not seek to file %s at %x", file.Header.Name.String(), file.Header.Offset)
 		}
 
@@ -192,30 +240,24 @@ func Parse(r io.ReadSeeker) (*MSE, error) {
 		}
 
 		length := file.Header.Length
+		if gen == devices.Nano3 {
+			length += 0x1000
+		}
+
 		start := int64(file.Header.Offset)
 		if valid {
 			file.PrefixHeader = &header
 			start += 0x1000
 		}
+		log.Printf("File %d: %s, offset %x, len %x, prefix: %v", i, file.Header.Name.String(), file.Header.Offset, file.Header.Length, valid)
 
 		// Read main data.
-		if _, err := r.Seek(start, 0); err != nil {
+		if _, err := r.Seek(start, io.SeekStart); err != nil {
 			return nil, fmt.Errorf("could not seek to file %s at %x", file.Header.Name.String(), start)
 		}
 		file.Data = make([]byte, length)
 		if _, err := io.ReadFull(r, file.Data); err != nil {
 			return nil, fmt.Errorf("could not read file %s: %v", file.Header.Name.String(), err)
-		}
-
-		// Read suffix.
-		offs, _ := r.Seek(0, 1)
-		suffixLen := 0
-		if offs%0x1000 != 0 {
-			suffixLen = 0x1000 - (int(offs) % 0x1000)
-		}
-		file.Suffix = make([]byte, suffixLen)
-		if _, err := io.ReadFull(r, file.Suffix); err != nil {
-			return nil, fmt.Errorf("could not read file %s suffix: %v", file.Header.Name.String(), err)
 		}
 	}
 
@@ -223,6 +265,7 @@ func Parse(r io.ReadSeeker) (*MSE, error) {
 		Guard:        guard,
 		VolumeHeader: &vh,
 		Files:        files,
+		DeviceKind:   gen,
 	}
 
 	return &m, nil
@@ -238,24 +281,28 @@ func (m *MSE) Serialize() ([]byte, error) {
 		if !fi.Header.Valid() {
 			continue
 		}
-		fi.Header.Length = uint32(len(fi.Data))
+		length := len(fi.Data)
+		fi.Header.Length = uint32(length)
 		if ph := fi.PrefixHeader; ph != nil {
 			// The 'prefix header' length seems to always be the length, but
 			// aligned to 16 bytes.
-			ph.Size = fi.Header.Length
+			ph.Size = uint32(length)
 			if ph.Size%16 != 0 {
 				ph.Size += 16 - (ph.Size % 16)
 			}
 		}
 
-		size := fi.Header.Length
+		if m.DeviceKind == devices.Nano3 {
+			fi.Header.Length -= 0x1000
+		}
+
 		if ph := fi.PrefixHeader; ph != nil {
-			size += 0x1000
+			length += 0x1000
 		}
-		if (size % 0x1000) != 0 {
-			size += (0x1000 - (size % 0x1000))
+		if (length % 0x1000) != 0 {
+			length += (0x1000 - (length % 0x1000))
 		}
-		sectionSizes = append(sectionSizes, int(size))
+		sectionSizes = append(sectionSizes, int(length))
 	}
 	offs := 0x6000
 	var sectionOffsets []int
@@ -270,8 +317,12 @@ func (m *MSE) Serialize() ([]byte, error) {
 	pad := 0x5000 - buf.Len()
 	buf.Write(bytes.Repeat([]byte{0}, pad))
 
-	for _, fi := range m.Files {
-		binary.Write(buf, binary.LittleEndian, fi.Header)
+	for i, fi := range m.Files {
+		header := *fi.Header
+		if header.Valid() {
+			header.Offset = uint32(sectionOffsets[i])
+		}
+		binary.Write(buf, binary.LittleEndian, header)
 	}
 
 	for i, fi := range m.Files {
@@ -281,7 +332,7 @@ func (m *MSE) Serialize() ([]byte, error) {
 		// Pad to start of file.
 		pad = sectionOffsets[i] - buf.Len()
 		if pad < 0 {
-			return nil, fmt.Errorf("file %d suffix too long (%d too long)", i-1, -pad)
+			return nil, fmt.Errorf("file %d padding too long (%d too long)", i-1, -pad)
 		}
 		buf.Write(bytes.Repeat([]byte{0}, pad))
 		// Write file data.
@@ -291,9 +342,9 @@ func (m *MSE) Serialize() ([]byte, error) {
 			buf.Write(bytes.Repeat([]byte{0xff}, 0xe00))
 		}
 		buf.Write(fi.Data)
-		// If file has suffix, write it.
-		suffixLen := sectionOffsets[i+1] - buf.Len()
-		buf.Write(fi.Suffix[:suffixLen])
+		// Pad to next offset.
+		paddingLen := sectionOffsets[i+1] - buf.Len()
+		buf.Write(bytes.Repeat([]byte{0}, paddingLen))
 	}
 
 	return buf.Bytes(), nil
