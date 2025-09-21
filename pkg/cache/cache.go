@@ -20,6 +20,7 @@ import (
 	"github.com/adrg/xdg"
 
 	"github.com/freemyipod/wInd3x/pkg/app"
+	"github.com/freemyipod/wInd3x/pkg/cfw"
 	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/exploit/decrypt"
 	"github.com/freemyipod/wInd3x/pkg/image"
@@ -376,7 +377,7 @@ func getDiagsDecrypted(app *app.App, options ...GetOption) error {
 }
 
 func getWTFDefanged(app *app.App, options ...GetOption) error {
-	defanger, ok := wtfDefangers[app.Desc.Kind]
+	defanger, ok := cfw.WTFDefangers[app.Desc.Kind]
 	if !ok {
 		return fmt.Errorf("don't know how to defang a %s", app.Desc.Kind)
 	}
