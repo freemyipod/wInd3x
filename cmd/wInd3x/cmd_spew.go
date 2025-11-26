@@ -249,9 +249,9 @@ var peripherals = map[devices.Kind][]peripheral{
 			{name: "CLKCON4", address: 0x3c50_0010},
 			{name: "CLKCON5", address: 0x3c50_0014},
 
-			{name: "PLLCON0", address: 0x3c50_0020},
-			{name: "PLLCON1", address: 0x3c50_0024},
-			{name: "PLLCON2", address: 0x3c50_0028},
+			{name: "PLL0PMS", address: 0x3c50_0020},
+			{name: "PLL1PMS", address: 0x3c50_0024},
+			{name: "PLL2PMS", address: 0x3c50_0028},
 
 			{name: "PLLCNT0", address: 0x3c50_0030},
 			{name: "PLLCNT1", address: 0x3c50_0034},
@@ -266,6 +266,12 @@ var peripherals = map[devices.Kind][]peripheral{
 			{name: "GATES1", address: 0x3c50_004C, parse: func(v uint32) {
 				printN3Gates(v + 0x20)
 			}},
+			{name: "SWRCON", address: 0x3c50_0050},
+			{name: "RSTSR", address: 0x3c50_0054},
+			{name: "PWRCON2", address: 0x3c50_0058},
+			{name: "PWRMOD2", address: 0x3c50_0060},
+			{name: "PWRCON3", address: 0x3c50_0068},
+			{name: "PWRCON4", address: 0x3c50_006c},
 		}},
 		{name: "WATCHDOG", registers: []register{
 			{name: "WDTCON", address: 0x3c80_0000},
