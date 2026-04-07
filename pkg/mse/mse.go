@@ -125,11 +125,12 @@ func guessGeneration(r io.ReadSeeker) (devices.Kind, error) {
 	// fragments. This is obviously a terrible heuristic, but it works for now.
 
 	headers := map[devices.Kind]string{
-		devices.Nano3: devices.Nano3.SoCCode() + "1.0",
-		devices.Nano4: devices.Nano4.SoCCode() + "2.0",
-		devices.Nano5: devices.Nano5.SoCCode() + "2.0",
-		devices.Nano6: devices.Nano6.SoCCode() + "2.0",
-		devices.Nano7: devices.Nano7.SoCCode() + "2.0",
+		devices.Nano3:     devices.Nano3.SoCCode() + "1.0",
+		devices.Nano4:     devices.Nano4.SoCCode() + "2.0",
+		devices.Nano5:     devices.Nano5.SoCCode() + "2.0",
+		devices.Nano6:     devices.Nano6.SoCCode() + "2.0",
+		devices.Nano7:     devices.Nano7.SoCCode() + "2.0",
+		devices.Nano7Late: devices.Nano7Late.SoCCode() + "2.0",
 	}
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return devices.Nano3, err

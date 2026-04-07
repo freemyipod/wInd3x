@@ -576,7 +576,7 @@ export class Main extends LitElement {
             `,
             complete: (c: Connected) => {
                 if (c.di.interfaceKind === InterfaceKind.DFU) {
-                    if (c.di.kind === DeviceKind.Nano7) {
+                    if ([DeviceKind.Nano7, DeviceKind.Nano7_2015].includes(c.di.kind)) {
                         this._hideInstructions = true;
                         return html`
                             <p>
@@ -633,7 +633,7 @@ export class Main extends LitElement {
             `,
             complete: (c: Connected) => {
                 if (c.di.interfaceKind === InterfaceKind.WTF && c.manufacturer === "freemyipod") {
-                    if (c.di.kind === DeviceKind.Nano7) {
+                    if ([DeviceKind.Nano7, DeviceKind.Nano7_2015].includes(c.di.kind)) {
                         this._hideInstructions = true;
                         return html`
                             <p>

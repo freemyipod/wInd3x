@@ -3,11 +3,12 @@ package devices
 type Kind string
 
 const (
-	Nano3 Kind = "n3g"
-	Nano4 Kind = "n4g"
-	Nano5 Kind = "n5g"
-	Nano6 Kind = "n6g"
-	Nano7 Kind = "n7g"
+	Nano3     Kind = "n3g"
+	Nano4     Kind = "n4g"
+	Nano5     Kind = "n5g"
+	Nano6     Kind = "n6g"
+	Nano7     Kind = "n7g"
+	Nano7Late Kind = "n7g-late"
 )
 
 type InterfaceKind string
@@ -39,6 +40,8 @@ func (k Kind) String() string {
 		return "Nano 6G"
 	case Nano7:
 		return "Nano 7G"
+	case Nano7Late:
+		return "Nano 7G (Mid-2015)"
 	}
 	return "UNKNOWN"
 }
@@ -53,7 +56,7 @@ func (k Kind) SoCCode() string {
 		return "8730"
 	case Nano6:
 		return "8723"
-	case Nano7:
+	case Nano7, Nano7Late:
 		return "8740"
 	}
 	return "INVL"
@@ -134,5 +137,13 @@ var Descriptions = []Description{
 		},
 		UpdaterFamilyID: 37,
 		Kind:            Nano7,
+	},
+	{
+		VID: 0x05ac,
+		PIDs: map[InterfaceKind]int16{
+			WTF: 0x124a,
+		},
+		UpdaterFamilyID: 37,
+		Kind:            Nano7Late,
 	},
 }

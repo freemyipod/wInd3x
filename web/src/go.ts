@@ -33,6 +33,7 @@ export enum DeviceKind {
     Nano5 = "n5g",
     Nano6 = "n6g",
     Nano7 = "n7g",
+    Nano7_2015 = "n7g-2015",
 }
 
 // keep in sync with pkg/devices/devices.go InterfaceKind

@@ -80,7 +80,7 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	switch dk {
 	case devices.Nano3:
 		pad = 0x800
-	case devices.Nano7:
+	case devices.Nano7, devices.Nano7Late:
 		pad = 0x400
 	}
 	buf.Write(bytes.Repeat([]byte{0}, pad-buf.Len()))
@@ -113,7 +113,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 	var kind devices.Kind
-	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7} {
+	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7, devices.Nano7Late} {
 		if bytes.Equal(hdr.Magic[:], []byte(k.SoCCode())) {
 			kind = k
 			break
@@ -137,7 +137,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 	switch kind {
 	case devices.Nano3:
 		hdrSize = 0x800
-	case devices.Nano7:
+	case devices.Nano7, devices.Nano7Late:
 		hdrSize = 0x400
 	}
 	if _, err := r.Seek(hdrSize, io.SeekStart); err != nil {

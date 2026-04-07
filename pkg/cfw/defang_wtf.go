@@ -132,7 +132,7 @@ func defangEFI(visitor VolumeVisitor) Defanger {
 func applyPatches(img *image.IMG1, patches VolumeVisitor) ([]byte, error) {
 	offs := 0x100
 	switch img.DeviceKind {
-	case devices.Nano7:
+	case devices.Nano7, devices.Nano7Late:
 		offs = 0
 	}
 	nr := efi.NewNestedReader(img.Body[offs:])
