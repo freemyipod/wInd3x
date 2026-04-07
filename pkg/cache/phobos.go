@@ -112,7 +112,13 @@ func RecoveryFirmwareDFUURL(dev devices.Kind) (string, error) {
 		return "", err
 	}
 
-	pidext := int(dev.Description().Kind.Description().PIDs[devices.WTF]) << 16
+	pid, ok := dev.Description().Kind.Description().PIDs[devices.WTF]
+
+	if !ok {
+		return "", fmt.Errorf("could not find WTF PID for device %s", dev)
+	}
+
+	pidext := int(pid) << 16
 	k2 := fmt.Sprintf("%d", pidext)
 
 	for _, v := range j.MobileDeviceSoftware {
@@ -129,7 +135,13 @@ func RecoveryWTFURL(dev devices.Kind) (string, error) {
 		return "", err
 	}
 
-	pidext := int(dev.Description().PIDs[devices.DFU]) << 16
+	pid, ok := dev.Description().PIDs[devices.DFU]
+
+	if !ok {
+		return "", fmt.Errorf("could not find DFU PID for device %s", dev)
+	}
+
+	pidext := int(pid) << 16
 	k2 := fmt.Sprintf("%d", pidext)
 
 	for _, v := range j.MobileDeviceSoftware {

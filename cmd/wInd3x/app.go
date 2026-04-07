@@ -113,7 +113,13 @@ func newDFU() (*desktopApp, error) {
 
 	var errs error
 	for _, deviceDesc := range devices.Descriptions {
-		usb, err := ctx.OpenDeviceWithVIDPID(gousb.ID(deviceDesc.VID), gousb.ID(deviceDesc.PIDs[devices.DFU]))
+		pid, ok := deviceDesc.PIDs[devices.DFU]
+
+		if !ok {
+			continue
+		}
+
+		usb, err := ctx.OpenDeviceWithVIDPID(gousb.ID(deviceDesc.VID), gousb.ID(pid))
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -148,7 +154,13 @@ func newAny() (*desktopApp, error) {
 	var errs error
 	for _, deviceDesc := range devices.Descriptions {
 		for _, ik := range []devices.InterfaceKind{devices.DFU, devices.WTF, devices.Disk} {
-			usb, err := ctx.OpenDeviceWithVIDPID(gousb.ID(deviceDesc.VID), gousb.ID(deviceDesc.PIDs[ik]))
+			pid, ok := deviceDesc.PIDs[ik]
+
+			if !ok {
+				continue
+			}
+
+			usb, err := ctx.OpenDeviceWithVIDPID(gousb.ID(deviceDesc.VID), gousb.ID(pid))
 			if err != nil {
 				errs = multierror.Append(errs, err)
 			}
@@ -177,7 +189,13 @@ func newAny() (*desktopApp, error) {
 
 func (a *desktopApp) waitSwitch(ctx context.Context, ik devices.InterfaceKind) error {
 	for {
-		usb, err := a.ctx.OpenDeviceWithVIDPID(gousb.ID(a.Desc.VID), gousb.ID(a.Desc.PIDs[ik]))
+		pid, ok := a.Desc.PIDs[ik]
+
+		if !ok {
+			return fmt.Errorf("device does not support interface kind %v", ik)
+		}
+
+		usb, err := a.ctx.OpenDeviceWithVIDPID(gousb.ID(a.Desc.VID), gousb.ID(pid))
 		if err != nil {
 			return err
 		}
