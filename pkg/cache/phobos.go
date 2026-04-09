@@ -59,7 +59,7 @@ var (
 func GetFirmwareVersions(dk devices.Kind) []string {
 	var res []string
 	if extra, ok := extraFirmwareVersions[dk]; ok {
-		for k, _ := range extra {
+		for k := range extra {
 			res = append(res, k)
 		}
 	}
