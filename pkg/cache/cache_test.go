@@ -20,7 +20,7 @@ func TestRepackAll(t *testing.T) {
 		devices.Nano5,
 		devices.Nano6,
 		devices.Nano7,
-		devices.Nano7_2015,
+		devices.Nano7Late,
 	} {
 		t.Run(fmt.Sprintf("%s", kind.String()), func(t *testing.T) {
 			a := app.App{

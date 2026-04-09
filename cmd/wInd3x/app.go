@@ -207,7 +207,7 @@ func (a *desktopApp) waitSwitch(ctx context.Context, ik devices.InterfaceKind) e
 		usb, err := a.ctx.OpenDeviceWithVIDPID(gousb.ID(a.Desc.VID), gousb.ID(pid))
 
 		if a.Desc.Kind == devices.Nano7 && ik == devices.WTF && usb == nil && err == nil {
-			// special case for Nano7_2015 as the DFU ids are the same as Nano7
+			// special case for Nano7Late as the DFU ids are the same as Nano7
 			// but the WTF ids are not
 			desc := findDescriptionByKind(devices.Nano7Late)
 
