@@ -187,15 +187,6 @@ func newAny() (*desktopApp, error) {
 	return nil, errs
 }
 
-func findDescriptionByKind(kind devices.Kind) *devices.Description {
-	for _, desc := range devices.Descriptions {
-		if desc.Kind == kind {
-			return &desc
-		}
-	}
-	return nil
-}
-
 func (a *desktopApp) waitSwitch(ctx context.Context, ik devices.InterfaceKind) error {
 	for {
 		pid, ok := a.Desc.PIDs[ik]
@@ -209,7 +200,7 @@ func (a *desktopApp) waitSwitch(ctx context.Context, ik devices.InterfaceKind) e
 		if a.Desc.Kind == devices.Nano7 && ik == devices.WTF && usb == nil && err == nil {
 			// special case for Nano7Late as the DFU ids are the same as Nano7
 			// but the WTF ids are not
-			desc := findDescriptionByKind(devices.Nano7Late)
+			desc := devices.Nano7Late.Description()
 
 			pid, ok = desc.PIDs[ik]
 
