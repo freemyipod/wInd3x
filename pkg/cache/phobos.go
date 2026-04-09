@@ -112,7 +112,7 @@ func RecoveryFirmwareDFUURL(dev devices.Kind) (string, error) {
 		return "", err
 	}
 
-	pid, ok := dev.Description().Kind.Description().PIDs[devices.WTF]
+	pid, ok := dev.Description().PIDs[devices.WTF]
 
 	if !ok {
 		return "", fmt.Errorf("could not find WTF PID for device %s", dev)
