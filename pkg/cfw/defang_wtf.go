@@ -94,7 +94,7 @@ var WTFDefangers = map[devices.Kind]Defanger{
 			Patch: Patches([]Patch{
 				// CheckHeaderSignatureImpl -> return 0
 				PatchAt{
-					Address: 0x0a00,
+					Address: 0x1a6c,
 					To: []byte{
 						0x00, 0x20, // mov r0, #0
 						0x70, 0x47, // bx lr
@@ -133,8 +133,8 @@ var WTFDefangers = map[devices.Kind]Defanger{
 						0x10, 0x60, // str r0, [r2]
 						0x04, 0x32, // add r2, r2, #4
 						0x04, 0x3b, // sub r3, r3, #4
-						0x03, 0xb1, // cbz r3, _done
-						0xf8, 0xe7, // b _loop
+						0x00, 0x2b, // cmp r3, #0
+						0xf8, 0xd1, // bne _loop
 						// _done:
 						0x70, 0x47, // bx lr
 					},
