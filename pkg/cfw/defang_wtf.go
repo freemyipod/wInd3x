@@ -19,6 +19,36 @@ var WTFDefangers = map[devices.Kind]Defanger{
 		0x1990: []byte{0x00, 0x70, 0xA0, 0xE3, 0x22, 0x00, 0x00, 0xEA},                      // skip signature check
 		0x770C: []byte("D\x00e\x00f\x00a\x00n\x00g\x00e\x00d\x00 \x00W\x00T\x00F\x00!\x00"), // change USB product string to show it's defanged
 	}),
+	devices.Nano4: defangEFI(MultipleVisitors([]VolumeVisitor{
+		// Change USB vendor string in DFU.efi.
+		&VisitPE32InFile{
+			FileGUID: efi.MustParseGUID("d8def165-a440-479d-a2e8-a81b03d56634"),
+			Patch: Patches([]Patch{
+				ReplaceExact{From: []byte("Apple Inc."), To: []byte("freemyipod")},
+			}),
+		},
+		// Disable signature checking in ROMBootValidator.efi.
+		&VisitPE32InFile{
+			FileGUID: efi.MustParseGUID("1ba058e3-2063-4919-8002-6d2e0c947e60"),
+			Patch: Patches([]Patch{
+				// CheckHeaderSignatureImpl -> return 0
+				PatchAt{
+					Address: 0x15a2,
+					To: []byte{
+						0x30, 0xe0,
+					},
+				},
+				// CheckDataSignature -> return 1
+				PatchAt{
+					Address: 0x0b40,
+					To: []byte{
+						0x01, 0x20,
+						0x70, 0x47,
+					},
+				},
+			}),
+		},
+	})),
 	devices.Nano5: defangEFI(MultipleVisitors([]VolumeVisitor{
 		// Change USB vendor string in RestoreDFU.efi.
 		&VisitPE32InFile{

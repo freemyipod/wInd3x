@@ -221,8 +221,14 @@ var cfwRunCmd = &cobra.Command{
 		time.Sleep(time.Second)
 
 		slog.Info("Sending firmware...")
+
+		// Nano 4G's WTF gets very upset (I suspect another memory corruption), when it receives a RequestClrStatus
+		sendOpts := []dfu.SendOption{{
+			SkipClean: app.Desc.Kind == devices.Nano4,
+		}}
+
 		for i := 0; i < 10; i++ {
-			err = dfu.SendImage(app.Usb, fwb, app.Desc.Kind.DFUVersion())
+			err = dfu.SendImage(app.Usb, fwb, app.Desc.Kind.DFUVersion(), sendOpts...)
 			if err == nil {
 				break
 			} else {
