@@ -149,19 +149,26 @@ func SendChunk(usb devices.Usb, c []byte, blockno uint16) error {
 }
 
 type SendOption struct {
-	Progress func(float32)
+	Progress  func(float32)
+	SkipClean bool
 }
 
 func SendImage(usb devices.Usb, i []byte, version devices.DFUProtoVersion, opts ...SendOption) error {
 	var progress func(float32)
+	var skipClean bool
 	for _, opt := range opts {
 		if opt.Progress != nil {
 			progress = opt.Progress
 		}
+		if opt.SkipClean {
+			skipClean = true
+		}
 	}
 
-	if err := Clean(usb); err != nil {
-		return fmt.Errorf("clean: %w", err)
+	if !skipClean {
+		if err := Clean(usb); err != nil {
+			return fmt.Errorf("clean: %w", err)
+		}
 	}
 
 	if version == devices.DFUProtoVersion1 {
