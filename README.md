@@ -10,7 +10,7 @@ Implements 'wInd3x' exploit (described below) and [s5late](https://github.com/m-
 | Device       | Haxed DFU     | Decrypt/Dump | CFW          | Exploit           | Notes        |
 |--------------|---------------|--------------|--------------|-------------------|--------------|
 | Nano 3G      | **YES**       | **YES**      | soon         | wInd3x            |              |
-| Nano 4G      | **YES**       | **YES**      | soon         | wInd3x            |              |
+| Nano 4G      | **YES**       | **YES**      | **YES**      | wInd3x            |              |
 | Nano 5G      | **YES**       | **YES**      | **YES**      | wInd3x            |              |
 | Nano 6G      | soon          | soon         | soon         |                   |              |
 | Nano 7G      | **YES**       | **YES**      | **YES**      | s5late -> wInd3x  |              |
