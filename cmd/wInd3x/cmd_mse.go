@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/freemyipod/wInd3x/pkg/image"
 	"github.com/spf13/cobra"
 
 	"github.com/freemyipod/wInd3x/pkg/mse"
@@ -50,6 +52,39 @@ var mseExtractCmd = &cobra.Command{
 			slog.Info("Extracting ...", "path", path)
 			if err := os.WriteFile(path, file.Data, 0666); err != nil {
 				return err
+			}
+
+			img, err := image.Read(bytes.NewReader(file.Data))
+			if err != nil {
+				return err
+			}
+
+			slog.Info(file.Header.Name.String(),
+				"magic", string(img.Header.Magic[:]),
+				"version", string(img.Header.Version[:]),
+				"format", fmt.Sprintf("%s (%d)", image.IMG1Format[img.Header.Format], img.Header.Format),
+				"entrypoint", fmt.Sprintf("0x%08x", img.Header.Entrypoint),
+				"bodyLength", img.Header.BodyLength,
+				"dataLength", img.Header.DataLength,
+				"footerCertOffset", fmt.Sprintf("0x%08x", img.Header.FooterCertOffset),
+				"footerCertLength", img.Header.FooterCertLength,
+			)
+
+			path = filepath.Join(dir, file.Header.Name.String() + ".body")
+			if err := os.WriteFile(path, img.Body, 0666); err != nil {
+				return err
+			}
+
+			if img.Header.Format == image.FormatX509SignedEncrypted || img.Header.Format == image.FormatX509Signed {
+				path = filepath.Join(dir, file.Header.Name.String() + ".sign")
+				if err := os.WriteFile(path, img.BodySignature, 0666); err != nil {
+					return err
+				}
+
+				path = filepath.Join(dir, file.Header.Name.String() + ".cert")
+				if err := os.WriteFile(path, img.CertificateBundle, 0666); err != nil {
+					return err
+				}
 			}
 		}
 
