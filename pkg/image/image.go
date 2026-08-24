@@ -110,9 +110,11 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 }
 
 type IMG1 struct {
-	Header     IMG1Header
-	DeviceKind devices.Kind
-	Body       []byte
+	Header				IMG1Header
+	DeviceKind			devices.Kind
+	Body				[]byte
+	BodySignature		[]byte
+	CertificateBundle	[]byte
 }
 
 var (
@@ -157,11 +159,25 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("could not read body")
 	}
 
-	// Ignore the rest of the fields, whatever.
+	bodySignature := make([]byte, IMG1BodySignatureLength)
+	certificateBundle := make([]byte, hdr.FooterCertLength)
+
+	if hdr.Format == FormatX509SignedEncrypted || hdr.Format == FormatX509Signed {
+		if _, err := r.Read(bodySignature); err != nil {
+			return nil, fmt.Errorf("could not read body signature")
+		}
+		if _, err := r.Read(certificateBundle); err != nil {
+			return nil, fmt.Errorf("could not read certificate bundle")
+		}
+	}
+
+	// TODO check if r is at EOF, warn otherwise
 
 	return &IMG1{
-		Header:     hdr,
-		DeviceKind: kind,
-		Body:       body,
+		Header:				hdr,
+		DeviceKind:			kind,
+		Body:				body,
+		BodySignature:		bodySignature,
+		CertificateBundle:	certificateBundle,
 	}, nil
 }
