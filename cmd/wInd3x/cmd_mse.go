@@ -59,6 +59,10 @@ var mseExtractCmd = &cobra.Command{
 				return err
 			}
 
+			calculatedDataLength := int(img.Header.BodyLength) + image.IMG1BodySignatureLength + int(img.Header.FooterCertLength)
+			extraFileSize := len(file.Data) - image.IMG1BodyOffset[img.DeviceKind] - calculatedDataLength
+			extraDataLength := int(img.Header.DataLength) - calculatedDataLength
+
 			slog.Info(file.Header.Name.String(),
 				"magic", string(img.Header.Magic[:]),
 				"version", string(img.Header.Version[:]),
@@ -69,6 +73,13 @@ var mseExtractCmd = &cobra.Command{
 				"footerCertOffset", fmt.Sprintf("0x%08x", img.Header.FooterCertOffset),
 				"footerCertLength", img.Header.FooterCertLength,
 			)
+
+			if extraFileSize > 0 || extraDataLength > 0 {
+				slog.Warn("Length check(s) failed.",
+					"extraFileSize", extraFileSize,
+					"extraDataLength", extraDataLength,
+				)
+			}
 
 			path = filepath.Join(dir, file.Header.Name.String() + ".body")
 			if err := os.WriteFile(path, img.Body, 0666); err != nil {
