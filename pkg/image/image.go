@@ -18,6 +18,13 @@ const (
 	FormatX509Signed          byte = 4
 )
 
+var IMG1Format = map[byte]string{
+	FormatSignedEncrypted:     "SIGNED_ENCRYPTED",
+	FormatSigned:              "SIGNED",
+	FormatX509SignedEncrypted: "X509_SIGNED_ENCRYPTED",
+	FormatX509Signed:          "X509_SIGNED",
+}
+
 var IMG1BodyOffset = map[devices.Kind]int{
 	devices.Nano3:		0x800,
 	devices.Nano4:		0x600,
