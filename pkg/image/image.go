@@ -27,6 +27,8 @@ var IMG1BodyOffset = map[devices.Kind]int{
 	devices.Nano7Late:	0x400,
 }
 
+var IMG1BodySignatureLength = 0x80
+
 // IMG1Headers are also known as '8900' headers. More info:
 // https://freemyipod.org/wiki/IMG1
 type IMG1Header struct {
@@ -57,7 +59,7 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	}
 
 	format := FormatX509Signed
-	sigLength := 0x80
+	sigLength := IMG1BodySignatureLength
 	certLength := 0x300
 	var version [3]byte
 	if dk == devices.Nano3 {
