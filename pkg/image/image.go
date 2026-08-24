@@ -2,6 +2,7 @@ package image
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -34,7 +35,8 @@ var IMG1BodyOffset = map[devices.Kind]int{
 	devices.Nano7Late:	0x400,
 }
 
-var IMG1BodySignatureLength = 0x80
+var IMG1SignedHeaderLength	= 0x40
+var IMG1BodySignatureLength	= 0x80
 
 // IMG1Headers are also known as '8900' headers. More info:
 // https://freemyipod.org/wiki/IMG1
@@ -51,6 +53,7 @@ type IMG1Header struct {
 	Unknown1         uint16
 	SecurityEpoch    uint16
 	HeaderSignature  [16]byte
+	HeaderLeftover   [4]byte
 }
 
 func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, error) {
@@ -145,6 +148,21 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		if !bytes.Equal(hdr.Version[:], []byte("2.0")) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}
+	}
+
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("could not seek to the beginning of the header")
+	}
+
+	signedHeader := make([]byte, IMG1SignedHeaderLength);
+
+	if _, err := r.Read(signedHeader); err != nil {
+		return nil, fmt.Errorf("could not read the signed part of the header")
+	}
+
+	headerHash := sha1.Sum(signedHeader)
+	if !bytes.Equal(hdr.HeaderLeftover[:], headerHash[0x10:]) {
+		slog.Warn("Unencrypted SHA-1 check failed")
 	}
 
 	hdrSize := int64(IMG1BodyOffset[kind])
