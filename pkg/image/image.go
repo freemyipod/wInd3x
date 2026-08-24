@@ -18,6 +18,15 @@ const (
 	FormatX509Signed          byte = 4
 )
 
+var IMG1BodyOffset = map[devices.Kind]int{
+	devices.Nano3:		0x800,
+	devices.Nano4:		0x600,
+	devices.Nano5:		0x600,
+	devices.Nano6:		0x400,
+	devices.Nano7:		0x400,
+	devices.Nano7Late:	0x400,
+}
+
 // IMG1Headers are also known as '8900' headers. More info:
 // https://freemyipod.org/wiki/IMG1
 type IMG1Header struct {
@@ -76,13 +85,7 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	}
 
 	// Pad to 0x600/0x800/0x400.
-	pad := 0x600
-	switch dk {
-	case devices.Nano3:
-		pad = 0x800
-	case devices.Nano6, devices.Nano7, devices.Nano7Late:
-		pad = 0x400
-	}
+	pad := IMG1BodyOffset[dk]
 	buf.Write(bytes.Repeat([]byte{0}, pad-buf.Len()))
 
 	// Add body.
@@ -133,13 +136,7 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
-	hdrSize := int64(0x600)
-	switch kind {
-	case devices.Nano3:
-		hdrSize = 0x800
-	case devices.Nano6, devices.Nano7, devices.Nano7Late:
-		hdrSize = 0x400
-	}
+	hdrSize := int64(IMG1BodyOffset[kind])
 	if _, err := r.Seek(hdrSize, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("could not seek past header")
 	}
