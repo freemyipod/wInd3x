@@ -56,6 +56,7 @@ var mseExtractCmd = &cobra.Command{
 			}
 
 			if m.DeviceKind == devices.Nano3 && file.Header.Name.String() == "hash" {
+				// all 0xFF
 				continue
 			}
 

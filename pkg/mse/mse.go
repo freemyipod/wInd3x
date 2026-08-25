@@ -191,6 +191,7 @@ func Parse(r io.ReadSeeker) (*MSE, error) {
 	}
 
 	padStart, _ := r.Seek(0, 1)
+	// 0x4800 on Nano2
 	pad := make([]byte, 0x5000-padStart)
 	if _, err := io.ReadFull(r, pad); err != nil {
 		return nil, fmt.Errorf("could not read padding")
