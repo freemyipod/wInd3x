@@ -201,7 +201,16 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
-	// TODO check if r is at EOF, warn otherwise
+	// at this point, we should be at EOF
+	data, err := io.ReadAll(r)
+
+	if err != nil {
+		slog.Error("Failed to read until EOF", "error", err)
+	}
+
+	if len(data) > 0 {
+		slog.Warn("There is unprocessed data at the end of the file", "length", len(data))
+	}
 
 	return &IMG1{
 		Header:				hdr,
