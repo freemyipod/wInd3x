@@ -140,13 +140,13 @@ var mseExtractCmd = &cobra.Command{
 			}
 
 			if img.Header.Format == image.FormatX509SignedEncrypted || img.Header.Format == image.FormatX509Signed {
-				path = filepath.Join(dir, file.Header.Name.String() + ".sign")
-				if err := os.WriteFile(path, img.BodySignature, 0666); err != nil {
+				bodySignaturePath := filepath.Join(dir, file.Header.Name.String() + ".sign")
+				if err := os.WriteFile(bodySignaturePath, img.BodySignature, 0666); err != nil {
 					return err
 				}
 
-				path = filepath.Join(dir, file.Header.Name.String() + ".cert")
-				if err := os.WriteFile(path, img.CertificateBundle, 0666); err != nil {
+				certificateBundlePath := filepath.Join(dir, file.Header.Name.String() + ".cert")
+				if err := os.WriteFile(certificateBundlePath, img.CertificateBundle, 0666); err != nil {
 					return err
 				}
 			}
