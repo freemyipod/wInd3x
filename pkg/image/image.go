@@ -150,6 +150,18 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		}
 	}
 
+	// apparently BodyLength needs to be rounded up to the AES block size (0x10)
+	if remainder := hdr.BodyLength & 0xF; remainder > 0 {
+		oldLength := hdr.BodyLength
+		hdr.BodyLength = (hdr.BodyLength + 0x0F) &^ 0x0F
+
+		slog.Info("Rounded BodyLength up to 0x10",
+			"increment", hdr.BodyLength - oldLength,
+			"oldBodyLength", oldLength,
+			"newBodyLength", hdr.BodyLength,
+		)
+	}
+
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("could not seek to the beginning of the header")
 	}
