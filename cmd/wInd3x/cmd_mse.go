@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/freemyipod/wInd3x/pkg/devices"
 	"github.com/freemyipod/wInd3x/pkg/image"
 	"github.com/spf13/cobra"
 
@@ -54,9 +55,66 @@ var mseExtractCmd = &cobra.Command{
 				return err
 			}
 
-			img, err := image.Read(bytes.NewReader(file.Data))
-			if err != nil {
+			if m.DeviceKind == devices.Nano3 && file.Header.Name.String() == "hash" {
+				continue
+			}
+
+			bodyPath := filepath.Join(dir, file.Header.Name.String() + ".body")
+			isRsrc := file.Header.Name.String() == "rsrc"
+			var body []byte
+			var img *image.IMG1
+
+			// Nano3 rsrc is not an IMG1 (header/padding is 0x1000 of 0xFF then multiple 0x100 blocks of 0x00)
+			// Nano4 rsrc is also not an IMG1 (header/padding is multiple 0x100 blocks of 0x00)
+			if (m.DeviceKind == devices.Nano3 || m.DeviceKind == devices.Nano4) && isRsrc {
+				var offset int
+
+				if m.DeviceKind == devices.Nano3 {
+					offset = 0x1000
+				} else {
+					offset = 0
+				}
+
+				blockSize := 0x100
+				zeroBlock := make([]byte, blockSize)
+
+				for {
+					if offset+blockSize > len(file.Data) {
+						break
+					}
+
+					if bytes.Equal(file.Data[offset:offset+blockSize], zeroBlock) {
+						offset += blockSize
+					} else {
+						break
+					}
+				}
+
+				body = file.Data[offset:]
+			} else {
+				img, err = image.Read(bytes.NewReader(file.Data))
+				if err != nil {
+					return err
+				}
+
+				body = img.Body
+			}
+
+			if isRsrc {
+				if !bytes.Equal(body[0x1FE:0x200], []byte{0x55, 0xAA}) {
+					slog.Warn("rsrc file MBR magic bytes [0x55, 0xAA] not found at offset 0x1FE")
+					continue
+				}
+
+				slog.Info("Verified rsrc", "size", len(body))
+			}
+
+			if err := os.WriteFile(bodyPath, body, 0666); err != nil {
 				return err
+			}
+
+			if img == nil {
+				continue
 			}
 
 			calculatedDataLength := int(img.Header.BodyLength) + image.IMG1BodySignatureLength + int(img.Header.FooterCertLength)
@@ -79,11 +137,6 @@ var mseExtractCmd = &cobra.Command{
 					"extraFileSize", extraFileSize,
 					"extraDataLength", extraDataLength,
 				)
-			}
-
-			path = filepath.Join(dir, file.Header.Name.String() + ".body")
-			if err := os.WriteFile(path, img.Body, 0666); err != nil {
-				return err
 			}
 
 			if img.Header.Format == image.FormatX509SignedEncrypted || img.Header.Format == image.FormatX509Signed {
