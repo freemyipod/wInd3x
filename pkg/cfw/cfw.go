@@ -133,6 +133,13 @@ type Patch interface {
 	Apply(in []byte) (out []byte, err error)
 }
 
+// ApplyFunc adapts a plain function to the Patch interface, for Patches that
+// don't fit ReplaceExact/PatchAt's "same-length overwrite" model - e.g. one
+// that grows the section.
+type ApplyFunc func(in []byte) ([]byte, error)
+
+func (f ApplyFunc) Apply(in []byte) ([]byte, error) { return f(in) }
+
 // Patches implements Patch by calling a series of Patches in sequnce. This
 // allows applying multiple Patches to a single section.
 type Patches []Patch
@@ -185,4 +192,28 @@ func (p PatchAt) Apply(in []byte) ([]byte, error) {
 	data = append(data, p.To...)
 	data = append(data, in[p.Address+len(p.To):]...)
 	return data, nil
+}
+
+// PatchAtExpect is PatchAt with the bytes it's about to overwrite spelled out,
+// so a wrong offset (or an offset that silently moved because an earlier patch
+// in the same Patches chain changed the module) fails at patch time instead of
+// on the device. Use it for anything whose address was read out of a
+// disassembler by hand.
+type PatchAtExpect struct {
+	Address int
+	From    []byte
+	To      []byte
+}
+
+func (p PatchAtExpect) Apply(in []byte) ([]byte, error) {
+	if len(p.From) != len(p.To) {
+		return nil, fmt.Errorf("from/to is different length (%d vs %d)", len(p.From), len(p.To))
+	}
+	if len(in) < p.Address+len(p.To) {
+		return nil, fmt.Errorf("input too small")
+	}
+	if got := in[p.Address : p.Address+len(p.From)]; !bytes.Equal(got, p.From) {
+		return nil, fmt.Errorf("at 0x%x: expected % x, found % x", p.Address, p.From, got)
+	}
+	return PatchAt{Address: p.Address, To: p.To}.Apply(in)
 }
