@@ -197,18 +197,36 @@ func (a *desktopApp) waitSwitch(ctx context.Context, ik devices.InterfaceKind) e
 
 		usb, err := a.ctx.OpenDeviceWithVIDPID(gousb.ID(a.Desc.VID), gousb.ID(pid))
 
-		if a.Desc.Kind == devices.Nano7 && ik == devices.WTF && usb == nil && err == nil {
-			// special case for Nano7Late as the DFU ids are the same as Nano7
-			// but the WTF ids are not
-			desc := devices.Nano7Late.Description()
+		if ik == devices.WTF && usb == nil && err == nil {
+			// special case when switching from DFU to WTF in case the DFU ids
+			// are the same for multiple devices but the WTF ids are not
+			if a.Desc.Kind == devices.Nano3 {
+				for _, k := range []devices.Kind{devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC} {
+					desc := k.Description()
+					pid, ok = desc.PIDs[ik]
 
-			pid, ok = desc.PIDs[ik]
+					if !ok {
+						return fmt.Errorf("device does not support interface kind %v", ik)
+					}
 
-			if !ok {
-				return fmt.Errorf("device does not support interface kind %v", ik)
+					usb, err = a.ctx.OpenDeviceWithVIDPID(gousb.ID(desc.VID), gousb.ID(pid))
+
+					if usb != nil && err == nil {
+						break
+					}
+				}
 			}
 
-			usb, err = a.ctx.OpenDeviceWithVIDPID(gousb.ID(desc.VID), gousb.ID(pid))
+			if a.Desc.Kind == devices.Nano7 {
+				desc := devices.Nano7Late.Description()
+				pid, ok = desc.PIDs[ik]
+
+				if !ok {
+					return fmt.Errorf("device does not support interface kind %v", ik)
+				}
+
+				usb, err = a.ctx.OpenDeviceWithVIDPID(gousb.ID(desc.VID), gousb.ID(pid))
+			}
 		}
 
 		if err != nil {

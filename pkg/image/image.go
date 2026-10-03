@@ -2,6 +2,7 @@ package image
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -18,6 +19,29 @@ const (
 	FormatX509Signed          byte = 4
 )
 
+var IMG1Format = map[byte]string{
+	FormatSignedEncrypted:     "SIGNED_ENCRYPTED",
+	FormatSigned:              "SIGNED",
+	FormatX509SignedEncrypted: "X509_SIGNED_ENCRYPTED",
+	FormatX509Signed:          "X509_SIGNED",
+}
+
+var IMG1BodyOffset = map[devices.Kind]int{
+	devices.Nano3:		0x800,
+	devices.Nano4:		0x600,
+	devices.Nano5:		0x600,
+	devices.Nano6:		0x400,
+	devices.Nano7:		0x400,
+	devices.Nano7Late:	0x400,
+	devices.Classic:	0x800,
+	devices.ClassicA:	0x800,
+	devices.ClassicB:	0x800,
+	devices.ClassicC:	0x800,
+}
+
+var IMG1SignedHeaderLength	= 0x40
+var IMG1BodySignatureLength	= 0x80
+
 // IMG1Headers are also known as '8900' headers. More info:
 // https://freemyipod.org/wiki/IMG1
 type IMG1Header struct {
@@ -33,6 +57,7 @@ type IMG1Header struct {
 	Unknown1         uint16
 	SecurityEpoch    uint16
 	HeaderSignature  [16]byte
+	HeaderLeftover   [4]byte
 }
 
 func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, error) {
@@ -48,16 +73,17 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	}
 
 	format := FormatX509Signed
-	sigLength := 0x80
+	sigLength := IMG1BodySignatureLength
 	certLength := 0x300
 	var version [3]byte
-	if dk == devices.Nano3 {
-		copy(version[:], []byte("1.0"))
-		format = FormatSigned
-		sigLength = 0
-		certLength = 0
-	} else {
-		copy(version[:], []byte("2.0"))
+	switch dk {
+		case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
+			copy(version[:], []byte("1.0"))
+			format = FormatSigned
+			sigLength = 0
+			certLength = 0
+		default:
+			copy(version[:], []byte("2.0"))
 	}
 
 	// Start off with the header.
@@ -76,13 +102,7 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	}
 
 	// Pad to 0x600/0x800/0x400.
-	pad := 0x600
-	switch dk {
-	case devices.Nano3:
-		pad = 0x800
-	case devices.Nano6, devices.Nano7, devices.Nano7Late:
-		pad = 0x400
-	}
+	pad := IMG1BodyOffset[dk]
 	buf.Write(bytes.Repeat([]byte{0}, pad-buf.Len()))
 
 	// Add body.
@@ -98,9 +118,11 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 }
 
 type IMG1 struct {
-	Header     IMG1Header
-	DeviceKind devices.Kind
-	Body       []byte
+	Header				IMG1Header
+	DeviceKind			devices.Kind
+	Body				[]byte
+	BodySignature		[]byte
+	CertificateBundle	[]byte
 }
 
 var (
@@ -113,7 +135,8 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 	var kind devices.Kind
-	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7, devices.Nano7Late} {
+	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7, devices.Nano7Late,
+		devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC} {
 		if bytes.Equal(hdr.Magic[:], []byte(k.SoCCode())) {
 			kind = k
 			break
@@ -123,23 +146,45 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, ErrNotImage1
 	}
 
-	if kind == devices.Nano3 {
+	switch kind {
+	case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
 		if !bytes.Equal(hdr.Version[:], []byte("1.0")) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}
-	} else {
+	default:
 		if !bytes.Equal(hdr.Version[:], []byte("2.0")) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}
 	}
 
-	hdrSize := int64(0x600)
-	switch kind {
-	case devices.Nano3:
-		hdrSize = 0x800
-	case devices.Nano6, devices.Nano7, devices.Nano7Late:
-		hdrSize = 0x400
+	// apparently BodyLength needs to be rounded up to the AES block size (0x10)
+	if remainder := hdr.BodyLength & 0xF; remainder > 0 {
+		oldLength := hdr.BodyLength
+		hdr.BodyLength = (hdr.BodyLength + 0x0F) &^ 0x0F
+
+		slog.Info("Rounded BodyLength up to 0x10",
+			"increment", hdr.BodyLength - oldLength,
+			"oldBodyLength", oldLength,
+			"newBodyLength", hdr.BodyLength,
+		)
 	}
+
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("could not seek to the beginning of the header")
+	}
+
+	signedHeader := make([]byte, IMG1SignedHeaderLength);
+
+	if _, err := r.Read(signedHeader); err != nil {
+		return nil, fmt.Errorf("could not read the signed part of the header")
+	}
+
+	headerHash := sha1.Sum(signedHeader)
+	if !bytes.Equal(hdr.HeaderLeftover[:], headerHash[0x10:]) {
+		slog.Warn("Unencrypted SHA-1 check failed")
+	}
+
+	hdrSize := int64(IMG1BodyOffset[kind])
 	if _, err := r.Seek(hdrSize, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("could not seek past header")
 	}
@@ -151,11 +196,34 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("could not read body")
 	}
 
-	// Ignore the rest of the fields, whatever.
+	bodySignature := make([]byte, IMG1BodySignatureLength)
+	certificateBundle := make([]byte, hdr.FooterCertLength)
+
+	if hdr.Format == FormatX509SignedEncrypted || hdr.Format == FormatX509Signed {
+		if _, err := r.Read(bodySignature); err != nil {
+			return nil, fmt.Errorf("could not read body signature")
+		}
+		if _, err := r.Read(certificateBundle); err != nil {
+			return nil, fmt.Errorf("could not read certificate bundle")
+		}
+	}
+
+	// at this point, we should be at EOF
+	data, err := io.ReadAll(r)
+
+	if err != nil {
+		slog.Error("Failed to read until EOF", "error", err)
+	}
+
+	if len(data) > 0 {
+		slog.Warn("There is unprocessed data at the end of the file", "length", len(data))
+	}
 
 	return &IMG1{
-		Header:     hdr,
-		DeviceKind: kind,
-		Body:       body,
+		Header:				hdr,
+		DeviceKind:			kind,
+		Body:				body,
+		BodySignature:		bodySignature,
+		CertificateBundle:	certificateBundle,
 	}, nil
 }
