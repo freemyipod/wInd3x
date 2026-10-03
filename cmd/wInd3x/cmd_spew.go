@@ -240,6 +240,7 @@ var peripherals = map[devices.Kind][]peripheral{
 			{name: "ECID_VERSION", address: 0x3d10_0014},
 		}},
 	},
+	// also Classic, ClassicA, ClassicB, ClassicC
 	devices.Nano3: []peripheral{
 		{name: "CLKGEN", registers: []register{
 			{name: "CLKCON0", address: 0x3c50_0000},
@@ -368,7 +369,14 @@ var spewCmd = &cobra.Command{
 			scfg.Debug(os.Stdout)
 		}
 
-		for _, p := range peripherals[app.Desc.Kind] {
+		peripheralsKind := app.Desc.Kind
+
+		switch peripheralsKind {
+		case devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
+		peripheralsKind = devices.Nano3
+		}
+
+		for _, p := range peripherals[peripheralsKind] {
 			fmt.Printf("\n%s\n", p.name)
 			fmt.Printf("%s\n", strings.Repeat("-", len(p.name)))
 			for _, reg := range p.registers {

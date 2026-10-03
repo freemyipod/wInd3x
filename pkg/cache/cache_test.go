@@ -21,6 +21,10 @@ func TestRepackAll(t *testing.T) {
 		devices.Nano6,
 		devices.Nano7,
 		devices.Nano7Late,
+		devices.Classic,
+		devices.ClassicA,
+		devices.ClassicB,
+		devices.ClassicC,
 	} {
 		t.Run(fmt.Sprintf("%s", kind.String()), func(t *testing.T) {
 			a := app.App{

@@ -14,6 +14,7 @@ import (
 type Defanger func(decrypted []byte) ([]byte, error)
 
 var WTFDefangers = map[devices.Kind]Defanger{
+	// also for Classic, ClassicA, ClassicB and ClassicC
 	devices.Nano3: defangRaw(map[int][]byte{
 		// replace bytes at addresses in the WTF binary:
 		0x1990: []byte{0x00, 0x70, 0xA0, 0xE3, 0x22, 0x00, 0x00, 0xEA},                      // skip signature check
@@ -142,6 +143,7 @@ var WTFDefangers = map[devices.Kind]Defanger{
 			}),
 		},
 	})),
+	// also for Nano7Late
 	devices.Nano7: defangEFI(MultipleVisitors([]VolumeVisitor{
 		// Change USB vendor string in ARM/AppleMobilePkg/Dfu/Dfu/DEBUG/Dfu.dll.
 		&VisitPE32InFile{
