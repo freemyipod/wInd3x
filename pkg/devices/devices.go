@@ -9,6 +9,10 @@ const (
 	Nano6     Kind = "n6g"
 	Nano7     Kind = "n7g"
 	Nano7Late Kind = "n7g-late"
+	Classic   Kind = "classic"
+	ClassicA  Kind = "classic-a"
+	ClassicB  Kind = "classic-b"
+	ClassicC  Kind = "classic-c"
 )
 
 type InterfaceKind string
@@ -22,7 +26,7 @@ const (
 type DFUProtoVersion int
 
 const (
-	// DFUProtoVersion1 is implemented by Nano3G.
+	// DFUProtoVersion1 is implemented by Nano3G and all Classics.
 	DFUProtoVersion1 DFUProtoVersion = 1
 	// DFUProtoVersion2 is implemented by Nano4G+.
 	DFUProtoVersion2 DFUProtoVersion = 2
@@ -39,16 +43,24 @@ func (k Kind) String() string {
 	case Nano6:
 		return "Nano 6G"
 	case Nano7:
-		return "Nano 7G"
+		return "Nano 7G (2012)"
 	case Nano7Late:
 		return "Nano 7G (Mid-2015)"
+	case Classic:
+		return "Classic"
+	case ClassicA:
+		return "Classic (120 GB)"
+	case ClassicB:
+		return "Classic 160 GB (Late 2009)"
+	case ClassicC:
+		return "Classic 160 GB (Late 2012)"
 	}
 	return "UNKNOWN"
 }
 
 func (k Kind) SoCCode() string {
 	switch k {
-	case Nano3:
+	case Nano3, Classic, ClassicA, ClassicB, ClassicC:
 		return "8702"
 	case Nano4:
 		return "8720"
@@ -64,7 +76,7 @@ func (k Kind) SoCCode() string {
 
 func (k Kind) DFUVersion() DFUProtoVersion {
 	switch k {
-	case Nano3:
+	case Nano3, Classic, ClassicA, ClassicB, ClassicC:
 		return DFUProtoVersion1
 	default:
 		return DFUProtoVersion2
@@ -145,5 +157,38 @@ var Descriptions = []Description{
 		},
 		UpdaterFamilyID: 37,
 		Kind:            Nano7Late,
+	},
+	{
+		VID: 0x05ac,
+		PIDs: map[InterfaceKind]int16{
+			WTF:  0x1241,
+			Disk: 0x1261,
+		},
+		UpdaterFamilyID: 24,
+		Kind:            Classic,
+	},
+	{
+		VID: 0x05ac,
+		PIDs: map[InterfaceKind]int16{
+			WTF:  0x1245,
+		},
+		UpdaterFamilyID: 33,
+		Kind:            ClassicA,
+	},
+	{
+		VID: 0x05ac,
+		PIDs: map[InterfaceKind]int16{
+			WTF:  0x1247,
+		},
+		UpdaterFamilyID: 35,
+		Kind:            ClassicB,
+	},
+	{
+		VID: 0x05ac,
+		PIDs: map[InterfaceKind]int16{
+			WTF:  0x1250,
+		},
+		UpdaterFamilyID: 38,
+		Kind:            ClassicC,
 	},
 }

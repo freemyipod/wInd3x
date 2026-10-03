@@ -55,7 +55,13 @@ var mseExtractCmd = &cobra.Command{
 				return err
 			}
 
-			if m.DeviceKind == devices.Nano3 && file.Header.Name.String() == "hash" {
+			nano3OrClassic := false
+			switch m.DeviceKind {
+			case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
+				nano3OrClassic = true
+			}
+
+			if nano3OrClassic && file.Header.Name.String() == "hash" {
 				// all 0xFF
 				continue
 			}
@@ -65,12 +71,12 @@ var mseExtractCmd = &cobra.Command{
 			var body []byte
 			var img *image.IMG1
 
-			// Nano3 rsrc is not an IMG1 (header/padding is 0x1000 of 0xFF then multiple 0x100 blocks of 0x00)
+			// Nano3/Classic rsrc is not an IMG1 (header/padding is 0x1000 of 0xFF then multiple 0x100 blocks of 0x00)
 			// Nano4 rsrc is also not an IMG1 (header/padding is multiple 0x100 blocks of 0x00)
-			if (m.DeviceKind == devices.Nano3 || m.DeviceKind == devices.Nano4) && isRsrc {
+			if (nano3OrClassic || m.DeviceKind == devices.Nano4) && isRsrc {
 				var offset int
 
-				if m.DeviceKind == devices.Nano3 {
+				if nano3OrClassic {
 					offset = 0x1000
 				} else {
 					offset = 0
