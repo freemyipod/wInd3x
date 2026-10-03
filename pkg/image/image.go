@@ -33,6 +33,10 @@ var IMG1BodyOffset = map[devices.Kind]int{
 	devices.Nano6:		0x400,
 	devices.Nano7:		0x400,
 	devices.Nano7Late:	0x400,
+	devices.Classic:	0x800,
+	devices.ClassicA:	0x800,
+	devices.ClassicB:	0x800,
+	devices.ClassicC:	0x800,
 }
 
 var IMG1SignedHeaderLength	= 0x40
@@ -72,13 +76,14 @@ func MakeUnsigned(dk devices.Kind, entrypoint uint32, body []byte) ([]byte, erro
 	sigLength := IMG1BodySignatureLength
 	certLength := 0x300
 	var version [3]byte
-	if dk == devices.Nano3 {
-		copy(version[:], []byte("1.0"))
-		format = FormatSigned
-		sigLength = 0
-		certLength = 0
-	} else {
-		copy(version[:], []byte("2.0"))
+	switch dk {
+		case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
+			copy(version[:], []byte("1.0"))
+			format = FormatSigned
+			sigLength = 0
+			certLength = 0
+		default:
+			copy(version[:], []byte("2.0"))
 	}
 
 	// Start off with the header.
@@ -130,7 +135,8 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 	var kind devices.Kind
-	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7, devices.Nano7Late} {
+	for _, k := range []devices.Kind{devices.Nano3, devices.Nano4, devices.Nano5, devices.Nano6, devices.Nano7, devices.Nano7Late,
+		devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC} {
 		if bytes.Equal(hdr.Magic[:], []byte(k.SoCCode())) {
 			kind = k
 			break
@@ -140,11 +146,12 @@ func Read(r io.ReadSeeker) (*IMG1, error) {
 		return nil, ErrNotImage1
 	}
 
-	if kind == devices.Nano3 {
+	switch kind {
+	case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
 		if !bytes.Equal(hdr.Version[:], []byte("1.0")) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}
-	} else {
+	default:
 		if !bytes.Equal(hdr.Version[:], []byte("2.0")) {
 			return nil, fmt.Errorf("unsupported image version %q", hdr.Version)
 		}

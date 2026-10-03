@@ -131,6 +131,10 @@ func guessGeneration(r io.ReadSeeker) (devices.Kind, error) {
 		devices.Nano6:     devices.Nano6.SoCCode() + "2.0",
 		devices.Nano7:     devices.Nano7.SoCCode() + "2.0",
 		devices.Nano7Late: devices.Nano7Late.SoCCode() + "2.0",
+		devices.Classic:   devices.Classic.SoCCode() + "1.0",
+		devices.ClassicA:  devices.ClassicA.SoCCode() + "1.0",
+		devices.ClassicB:  devices.ClassicB.SoCCode() + "1.0",
+		devices.ClassicC:  devices.ClassicC.SoCCode() + "1.0",
 	}
 	if _, err := r.Seek(0, io.SeekStart); err != nil {
 		return devices.Nano3, err
@@ -242,7 +246,8 @@ func Parse(r io.ReadSeeker) (*MSE, error) {
 		}
 
 		length := file.Header.Length
-		if gen == devices.Nano3 {
+		switch gen {
+		case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
 			length += 0x1000
 		}
 
@@ -294,7 +299,8 @@ func (m *MSE) Serialize() ([]byte, error) {
 			}
 		}
 
-		if m.DeviceKind == devices.Nano3 {
+		switch m.DeviceKind {
+		case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
 			fi.Header.Length -= 0x1000
 		}
 

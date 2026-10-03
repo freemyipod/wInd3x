@@ -32,7 +32,7 @@ var restoreCmd = &cobra.Command{
 
 		hasBootloader := true
 		switch app.Desc.Kind {
-		case devices.Nano3:
+		case devices.Nano3, devices.Classic, devices.ClassicA, devices.ClassicB, devices.ClassicC:
 			hasBootloader = false
 		}
 
