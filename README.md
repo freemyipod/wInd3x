@@ -123,6 +123,19 @@ If you decrypted a valid WTF image, you should be able to then run it:
 
     $ ./wInd3x run wtf-dec.dfu
 
+Encrypting One Block (Nano 4G)
+-----------------------------
+
+With a nano 4G in stock DFU mode on Linux, encrypt exactly 16 bytes using the
+bootROM's Global-key AES routine and a zero IV:
+
+    $ ./wInd3x encrypt hash.bin encrypted.bin
+
+Both files contain one raw 16-byte block. For IMG1 header authentication, the
+input is the first 16 bytes of SHA-1 over header bytes `0x00..0x3f`; put the
+encrypted result at `0x40..0x4f`. The later body/certificate validation still
+applies. Then you can use pwnage 2.0 to continue execution.
+
 CFW
 ---
 
