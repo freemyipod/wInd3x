@@ -74,24 +74,22 @@ type Immediate uint32
 
 func (i Immediate) encodeDataSource(c *ctx) uint32 {
 	val := uint32(i)
-	encodable := false
-	if val >= (1 << 11) {
-		for i := 0; i < 16; i++ {
-			m := ((val << uint32(i*2)) | (val >> (32 - uint32(i*2)))) & 0xffffffff
-			if m < 256 {
-				val = (uint32(i) << 8) | m
-				encodable = true
-				break
-			}
-		}
-		if !encodable {
-			panic("unencodable immediate")
+	if val < 256 {
+		var res uint32
+		res |= 1 << 25
+		res |= val
+		return res
+	}
+	for r := 0; r < 16; r++ {
+		m := ((val << uint32(r*2)) | (val >> (32 - uint32(r*2)))) & 0xffffffff
+		if m < 256 {
+			var res uint32
+			res |= 1 << 25
+			res |= (uint32(r) << 8) | m
+			return res
 		}
 	}
-	var res uint32
-	res |= 1 << 25
-	res |= val
-	return res
+	panic("unencodable immediate")
 }
 
 func (r Register) encodeDataSource(c *ctx) uint32 {

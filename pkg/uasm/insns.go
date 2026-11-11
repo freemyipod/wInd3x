@@ -180,6 +180,57 @@ func (a Sub) hydrate(c *ctx) []byte {
 	return p32(res)
 }
 
+// Subs is SUB with the S (set flags) bit. Used for loop counters.
+type Subs struct {
+	instruction
+	Dest  Register
+	Src   Register
+	Compl DataSource
+}
+
+func (a Subs) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= a.Dest.Encode() << 12
+	res |= a.Src.Encode() << 16
+	res |= a.Compl.encodeDataSource(c)
+	res |= 0b111000000101 << 20
+	return p32(res)
+}
+
+// LdrPost is a post-increment word load: ldr Rd, [Rn], #offset.
+type LdrPost struct {
+	instruction
+	Dest   Register
+	Base   Register
+	Offset uint16
+}
+
+func (l LdrPost) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= uint32(l.Offset)
+	res |= l.Base.Encode() << 16
+	res |= l.Dest.Encode() << 12
+	res |= 0xe49 << 20
+	return p32(res)
+}
+
+// StrPost is a post-increment word store: str Rd, [Rn], #offset.
+type StrPost struct {
+	instruction
+	Src    Register
+	Base   Register
+	Offset uint16
+}
+
+func (s StrPost) hydrate(c *ctx) []byte {
+	var res uint32
+	res |= uint32(s.Offset)
+	res |= s.Base.Encode() << 16
+	res |= s.Src.Encode() << 12
+	res |= 0xe48 << 20
+	return p32(res)
+}
+
 type Cmp struct {
 	instruction
 	A Register
