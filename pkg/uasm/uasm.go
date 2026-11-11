@@ -82,6 +82,7 @@ type Condition string
 const (
 	AL Condition = ""
 	NE Condition = "NE"
+	GT Condition = "GT"
 )
 
 func (c Condition) Encode() uint32 {
@@ -90,6 +91,8 @@ func (c Condition) Encode() uint32 {
 		return 0b1110 << 28
 	case NE:
 		return 0b0001 << 28
+	case GT:
+		return 0b1100 << 28
 	}
 	panic("invalid condition")
 }

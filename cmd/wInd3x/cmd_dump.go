@@ -14,7 +14,7 @@ import (
 var dumpCmd = &cobra.Command{
 	Use:   "dump [offset] [size] [file]",
 	Short: "Dump memory to file",
-	Long:  "Read memory from a connected device and write results to a file. Not very fast.",
+	Long:  "Read memory from a connected device and write results to a file.",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		app, err := newDFU()
@@ -39,17 +39,28 @@ var dumpCmd = &cobra.Command{
 		defer f.Close()
 
 		start := time.Now()
-		for i := uint32(0); i < size; i += 0x40 {
-			o := offset + i
-			slog.Info("Dumping...", "offset", o)
-			data, err := dumpmem.Trigger(app.Usb, app.Ep, o)
-			if err != nil {
-				return fmt.Errorf("failed to run wInd3x exploit: %w", err)
+		lastReport := start
+		progress := func(p float32) {
+			now := time.Now()
+			if now.Sub(lastReport) < 500*time.Millisecond && p < 1.0 {
+				return
 			}
-			if _, err := f.Write(data); err != nil {
-				return fmt.Errorf("failed to write: %w", err)
+			lastReport = now
+			elapsed := now.Sub(start)
+			done := uint32(float32(size) * p)
+			if p > 0 && p < 1.0 {
+				eta := time.Duration(float64(elapsed) / float64(p) * float64(1.0-p))
+				slog.Info("Dumping...", "offset", fmt.Sprintf("0x%x", offset+done),
+					"percent", fmt.Sprintf("%.1f%%", p*100),
+					"bps", int(float64(done)/elapsed.Seconds()),
+					"eta", fmt.Sprintf("%ds", int(eta.Seconds())))
 			}
 		}
+
+		if err := dumpmem.DumpRange(app.Usb, app.Ep, offset, size, f, progress); err != nil {
+			return err
+		}
+
 		took := time.Since(start)
 		slog.Info("Done!", "bytes", size, "seconds", int(took.Seconds()), "bps", int(float64(size)/took.Seconds()))
 
